@@ -1,8 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { teamByToken, membersOf, tasksOf, currentMember, logView } from "@/lib/data";
-import { dday, md, STATUS_LABEL } from "@/lib/format";
+import type { Metadata } from "next";
+import { dday, dueLabel, STATUS_LABEL } from "@/lib/format";
 import { MePicker } from "./me-picker";
+import { NotifyToggle } from "./notify-toggle";
+
+export async function generateMetadata({ params }: PageProps<"/t/[token]">): Promise<Metadata> {
+  const { token } = await params;
+  return {
+    manifest: `/t/${token}/manifest.webmanifest`,
+    appleWebApp: { capable: true, title: "보임", statusBarStyle: "default" },
+    robots: { index: false },
+  };
+}
 
 export default async function Board({ params }: PageProps<"/t/[token]">) {
   const { token } = await params;
@@ -26,6 +37,8 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
 
       <MePicker token={token} members={members} me={me} back={`/t/${token}`} />
 
+      {me && <NotifyToggle token={token} meCode={me.code} />}
+
       {me && mine.length > 0 && (
         <p className="callout">
           <b className="num">{me.code}</b> 님이 올릴 업무가 <b className="num">{mine.length}</b>개 있습니다.
@@ -41,7 +54,7 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
       {tasks.length === 0 ? (
         <p className="muted">아직 등록된 업무가 없습니다. 역할 분담을 마쳤다면 첫 업무를 등록해 주세요.</p>
       ) : next ? (
-        <p className="muted">가장 가까운 남은 마감: <b className="fg">{next.title}</b> · <span className="num">{md(next.due)} ({dday(next.due)})</span></p>
+        <p className="muted">가장 가까운 남은 마감: <b className="fg">{next.title}</b> · <span className="num">{dueLabel(next.due, next.due_time)} ({dday(next.due)})</span></p>
       ) : (
         <p className="muted">모든 업무가 완료됐습니다.</p>
       )}
@@ -55,7 +68,7 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
               <span className="rule">완료 기준: {t.rule}</span>
               <span className="meta">
                 <span>담당 <b className="num">{t.owner}</b></span>
-                <span className="num">{md(t.due)} · {dday(t.due)}</span>
+                <span className="num">{dueLabel(t.due, t.due_time)} · {dday(t.due)}</span>
                 {t.latest?.review === "fail" && <span className="warn">다시 올려 주세요</span>}
               </span>
             </Link>

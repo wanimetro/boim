@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { teamByToken, membersOf, tasksOf, currentMember } from "@/lib/data";
-import { dday, md, dateTime, STATUS_LABEL } from "@/lib/format";
+import { dday, dueLabel, dateTime, STATUS_LABEL } from "@/lib/format";
 import { MePicker } from "../../me-picker";
 import { UploadForm } from "./upload-form";
 
@@ -22,7 +22,7 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
       <header className="stack-sm">
         <span className="eyebrow">
           <span className="num">{task.code}</span> · 담당 <span className="num">{task.owner}</span> · 마감{" "}
-          <span className="num">{md(task.due)} ({dday(task.due)})</span>
+          <span className="num">{dueLabel(task.due, task.due_time)} ({dday(task.due)})</span>
         </span>
         <h1>{task.title}</h1>
         <span className={`pill s-${task.status} self-start`}>{STATUS_LABEL[task.status]}</span>

@@ -20,10 +20,17 @@ export function NewTaskForm({ token, members, minDate }: {
           {members.map((m) => <option key={m.id} value={m.id}>{m.code}</option>)}
         </select>
       </label>
-      <label className="field">
-        <span>중간 마감</span>
-        <input id="due" name="due" type="date" required min={minDate} />
-      </label>
+      <div className="field-row">
+        <label className="field">
+          <span>중간 마감 날짜</span>
+          <input id="due" name="due" type="date" required min={minDate} />
+        </label>
+        <label className="field">
+          <span>시각</span>
+          <input id="due_time" name="due_time" type="time" defaultValue="23:59" required />
+        </label>
+      </div>
+      <p className="muted small">마감 1시간 전·30분 전에 아직 올리지 않은 담당자에게 앱 알림이 갑니다.</p>
       <label className="field">
         <span>완료 기준</span>
         <textarea id="rule" name="rule" required rows={3} maxLength={200}

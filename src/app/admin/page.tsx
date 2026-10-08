@@ -3,17 +3,14 @@ import { headers } from "next/headers";
 import { isAdmin } from "@/lib/admin";
 import { db, BUCKET } from "@/lib/supabase";
 import { membersOf, tasksOf, type Team } from "@/lib/data";
-import { dateTime, md, today } from "@/lib/format";
+import { dateTime, dueLabel, md, today } from "@/lib/format";
 import { firstDeadline, tally, verdict } from "@/lib/metrics";
 import { LoginForm, TeamForm } from "./forms";
-import { review, markReminded } from "./actions";
+import { review } from "./actions";
 
 export const metadata: Metadata = { title: "보임 운영", robots: { index: false } };
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
-const addDays = (d: string, n: number) => {
-  const x = new Date(`${d}T00:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10);
-};
 
 export default async function Admin() {
   if (!(await isAdmin())) {
@@ -43,11 +40,26 @@ export default async function Admin() {
   const closed = rows.length > 0 && rows.every((r) => r.first.due && r.first.due < now);
   const v = verdict(rate, sum.total, closed);
 
-  // 내일(또는 그 전)이 마감인데 통과된 결과물이 없는 업무 = 오늘 DM 보낼 대상
-  const tomorrow = addDays(now, 1);
-  const remind = rows.flatMap((r) => r.tasks
-    .filter((t) => t.due <= tomorrow && t.due >= now && t.status !== "done")
-    .map((t) => ({ r, t })));
+  // 앱 알림 발송 현황
+  const memberIds = rows.flatMap((r) => r.members.map((m) => m.id));
+  const [{ data: devices }, { data: sent }] = await Promise.all([
+    db().from("push_subscriptions").select("member_id").in("member_id", memberIds.length ? memberIds : [""]),
+    db().from("notifications").select("task_id, member_id, kind, status, error, sent_at").order("sent_at", { ascending: false }).limit(500),
+  ]);
+  const withDevice = new Set((devices ?? []).map((d) => d.member_id));
+  const taskInfo = new Map(rows.flatMap((r) => r.tasks.map((t) => [t.id, { team: r.team.id, t }] as const)));
+  const memberCode = new Map(rows.flatMap((r) => r.members.map((m) => [m.id, m.code] as const)));
+  const pushStats = rows.map((r) => {
+    const mine = (sent ?? []).filter((n) => taskInfo.get(n.task_id)?.team === r.team.id);
+    const n = (kind: string, status: string) => mine.filter((x) => x.kind === kind && x.status === status).length;
+    return {
+      r, on: r.members.filter((m) => withDevice.has(m.id)).length,
+      s60: n("60", "sent"), s30: n("30", "sent"),
+      failed: mine.filter((x) => x.status === "failed").length,
+      noDevice: mine.filter((x) => x.status === "no_device").length,
+    };
+  });
+  const recent = (sent ?? []).slice(0, 15);
 
   const queue = rows.flatMap((r) => r.tasks.flatMap((t) =>
     t.submissions.filter((s) => s.review === "pending").map((s) => ({ r, t, s }))));
@@ -66,12 +78,12 @@ export default async function Admin() {
         <h2>본인 첨부율 (판정)</h2>
         <p className="big num">{pct(rate)} <span className={`pill ${v.cls}`}>{v.label}</span></p>
         <p className="muted small">
-          첫 중간 마감 항목 {sum.total}개 중, 알림(DM) 전에 담당 본인이 올려 통과한 항목 {sum.ok}개.
+          첫 중간 마감 항목 {sum.total}개 중, 마감 24시간 전까지 담당 본인이 올려 통과한 항목 {sum.ok}개.
           60% 이상 개발 착수 · 30% 미만 설계 전환. 모든 팀의 첫 중간 마감이 지나야 판정이 확정됩니다.
         </p>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>팀</th><th>첫 마감</th><th>항목</th><th>알림 전 본인</th><th>알림 후 본인</th><th>대신</th><th>마감 후</th><th>없음</th><th>비율</th><th>열람</th></tr></thead>
+            <thead><tr><th>팀</th><th>첫 마감</th><th>항목</th><th>24시간 전 본인</th><th>24시간 안 본인</th><th>대신</th><th>마감 후</th><th>없음</th><th>비율</th><th>열람</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.team.id}>
@@ -89,25 +101,40 @@ export default async function Admin() {
         <p className="muted small">검수 대기 중인 결과물은 통과해야 셉니다. 남은 검수를 먼저 끝내 주세요.</p>
       </section>
 
-      <section className="stack">
-        <h2>오늘 알림 보낼 업무 {remind.filter(({ t }) => !t.reminded_at).length}건</h2>
-        <p className="muted small">내일까지가 마감인데 아직 완료되지 않은 업무입니다. 담당자에게만 카톡 1:1로 한 번 보내고 “보냄”을 눌러 주세요. 재촉하지 않습니다.</p>
-        {remind.length === 0 && <p className="muted">보낼 대상이 없습니다.</p>}
-        {remind.map(({ t }) => (
-          <form key={t.id} action={markReminded} className="panel remind-row">
-            <input type="hidden" name="task" value={t.id} />
-            <span><b className="num">{t.code}</b> {t.title} · 담당 <b className="num">{t.owner}</b> · 마감 {md(t.due)}</span>
-            <span className={`pill s-${t.status}`}>{t.status === "wait" ? "확인 중" : "파일 없음"}</span>
-            {t.reminded_at ? (
-              <>
-                <span className="muted small">보냄 {dateTime(t.reminded_at)}</span>
-                <button className="link-btn" name="undo" value="1">취소</button>
-              </>
-            ) : (
-              <button className="btn" style={{ width: "auto", padding: "8px 14px" }}>DM 보냄</button>
-            )}
-          </form>
-        ))}
+      <section className="panel">
+        <h2>앱 알림 발송</h2>
+        <p className="muted small">마감 1시간 전·30분 전에 아직 아무것도 올리지 않은 담당자에게 자동으로 갑니다. “알림 안 켬”은 담당자가 이 기기에서 알림을 켜지 않아 보내지 못한 건수입니다.</p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>팀</th><th>알림 켠 사람</th><th>1시간 전</th><th>30분 전</th><th>실패</th><th>알림 안 켬</th></tr></thead>
+            <tbody>
+              {pushStats.map((p) => (
+                <tr key={p.r.team.id}>
+                  <td>{p.r.team.code}</td><td className="num">{p.on}/{p.r.members.length}</td>
+                  <td className="num">{p.s60}</td><td className="num">{p.s30}</td>
+                  <td className="num">{p.failed}</td><td className="num">{p.noDevice}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {recent.length > 0 && (
+          <ul className="history">
+            {recent.map((n, i) => {
+              const info = taskInfo.get(n.task_id);
+              return (
+                <li key={i}>
+                  <span className="num">{dateTime(n.sent_at)}</span>
+                  <span className="num">{info?.t.code ?? "?"} · {memberCode.get(n.member_id) ?? "?"}</span>
+                  <span>{n.kind === "60" ? "1시간 전" : "30분 전"}{n.error ? ` · ${n.error}` : ""}</span>
+                  <span className={`pill ${n.status === "sent" ? "s-done" : n.status === "failed" ? "s-none" : "s-wait"}`}>
+                    {n.status === "sent" ? "보냄" : n.status === "failed" ? "실패" : "알림 안 켬"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       <section className="stack">
@@ -119,7 +146,7 @@ export default async function Admin() {
           const self = s.uploader_id === t.owner_id;
           return (
             <article key={s.id} className="panel">
-              <span className="eyebrow"><span className="num">{t.code}</span> · 마감 {md(t.due)} · 올림 {dateTime(s.created_at)}</span>
+              <span className="eyebrow"><span className="num">{t.code}</span> · 마감 {dueLabel(t.due, t.due_time)} · 올림 {dateTime(s.created_at)}</span>
               <h3>{t.title}</h3>
               <p className="rulebox">{t.rule}</p>
               <p className="small">

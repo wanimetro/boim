@@ -35,21 +35,43 @@ export async function createTask(token: string, _prev: FormState, formData: Form
   const title = String(formData.get("title") ?? "").trim();
   const owner = String(formData.get("owner") ?? "");
   const due = String(formData.get("due") ?? "");
+  const dueTime = String(formData.get("due_time") || "23:59");
   const rule = String(formData.get("rule") ?? "").trim();
 
   if (!title || title.length > 80) return { error: "업무 이름을 80자 안으로 적어 주세요." };
   if (!members.some((m) => m.id === owner)) return { error: "담당을 골라 주세요." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return { error: "중간 마감 날짜를 골라 주세요." };
+  if (!/^\d{2}:\d{2}$/.test(dueTime)) return { error: "마감 시각을 다시 골라 주세요." };
   if (rule.length < 5 || rule.length > 200) return { error: "완료 기준을 파일을 보고 판단할 수 있게 한 줄로 적어 주세요." };
 
   const { data: last } = await db().from("tasks").select("seq").eq("team_id", team.id)
     .order("seq", { ascending: false }).limit(1).maybeSingle();
   const { error } = await db().from("tasks").insert({
-    team_id: team.id, seq: (last?.seq ?? 0) + 1, title, owner_id: owner, due, rule, created_by: me?.id ?? null,
+    team_id: team.id, seq: (last?.seq ?? 0) + 1, title, owner_id: owner, due, due_time: dueTime, rule, created_by: me?.id ?? null,
   });
   if (error) return { error: "저장하지 못했습니다. 잠시 후 다시 시도해 주세요." };
   revalidatePath(`/t/${token}`);
   redirect(`/t/${token}`);
+}
+
+/** 이 기기에서 앱 알림을 켠다. 알림은 지금 고른 "나"의 업무에만 간다. */
+export async function savePush(token: string, sub: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<FormState> {
+  const { team, members } = await load(token);
+  const me = await currentMember(team, members);
+  if (!me) return { error: "먼저 내 번호를 골라 주세요." };
+  if (!/^https:\/\/\S+$/.test(sub.endpoint) || !sub.keys?.p256dh || !sub.keys?.auth) return { error: "알림을 켜지 못했습니다." };
+  const { error } = await db().from("push_subscriptions").upsert(
+    { member_id: me.id, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+    { onConflict: "endpoint" },
+  );
+  return error ? { error: "알림을 켜지 못했습니다." } : {};
+}
+
+export async function removePush(token: string, endpoint: string) {
+  const { team, members } = await load(token);
+  const me = await currentMember(team, members);
+  if (!me) return;
+  await db().from("push_subscriptions").delete().eq("endpoint", endpoint).eq("member_id", me.id);
 }
 
 const MAX_BYTES = 20 * 1024 * 1024;

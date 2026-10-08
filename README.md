@@ -20,25 +20,32 @@
 
 - **검수:** `/admin`에서 올라온 결과물이 완료 기준에 맞는지 보고 통과/반려. 반려 이유는 담당자 화면에 보인다.
 - **본인/대신:** 자동으로 기록된다(올린 사람 번호 ≠ 담당 번호면 “대신”). 팀원이 번호를 잘못 골랐을 수 있으니 이상하면 팀장에게 확인한다.
-- **마감 하루 전:** `/admin`의 “오늘 알림 보낼 업무”에 뜬 담당자에게만 카톡 1:1로 한 번 안내하고 **DM 보냄**을 누른다. 재촉하지 않는다.
+- **알림은 앱이 보낸다:** 마감 1시간 전·30분 전에, 아직 아무것도 올리지 않은 담당자에게 웹 푸시가 간다(Supabase pg_cron이 5분마다 `/api/cron/remind`를 부름). 사람이 DM을 보내지 않는다. 발송·실패·“알림 안 켬” 건수는 `/admin`의 **앱 알림 발송**에서 본다.
+  - 팀원은 보드에서 내 번호를 고른 뒤 **알림 받기**를 한 번 누른다.
+  - 아이폰은 사파리 **공유 → 홈 화면에 추가** 후 홈 화면 아이콘으로 열어야 알림을 켤 수 있다(iOS 16.4 이상).
 
-판정(워크북 3쪽): 각 팀의 **첫 중간 마감 항목 전체** 중 **DM 보내기 전에** 담당 본인이 올려 통과한 항목의 비율. 알림 뒤·마감 뒤·대신 올린 항목은 따로 세고 판정에는 넣지 않는다. 모든 팀의 첫 중간 마감이 지나야 확정된다.
+판정(워크북 3쪽): 각 팀의 **첫 중간 마감 항목 전체** 중 **마감 24시간 전까지** 담당 본인이 올려 통과한 항목의 비율. 24시간 안·마감 뒤·대신 올린 항목은 따로 세고 판정에는 넣지 않는다. 앱 알림은 24시간 안에만 가므로 판정 숫자에 영향을 주지 않는다. 모든 팀의 첫 중간 마감이 지나야 확정된다.
 
 ## 배포 (처음 한 번)
 
 ### 1. Supabase
 1. supabase.com에서 새 프로젝트를 만든다 (리전: Northeast Asia (Seoul)).
-2. **SQL Editor**에 `supabase/migrations/` 안의 파일을 번호 순서대로(`0001` → `0002`) 붙여 넣고 실행한다. 테이블 5개와 비공개 버킷 `submissions`가 생긴다.
+2. **SQL Editor**에 `supabase/migrations/` 안의 파일을 번호 순서대로(`0001` → `0002` → `0003`) 붙여 넣고 실행한다. 테이블 7개, 5분 알림 예약 작업, 비공개 버킷 `submissions`가 생긴다.
    - CLI를 쓰면: `npx supabase link --project-ref <ref>` 후 `npx supabase db push`
 3. **Project Settings → API**에서 URL, anon(publishable) 키, service_role(secret) 키를 확인한다.
 
 ### 2. Vercel
 1. 이 `web` 폴더를 GitHub 저장소로 올린다.
 2. vercel.com에서 **Add New → Project**로 저장소를 가져온다. 저장소 루트가 `web`이 아니면 Root Directory를 `web`으로 지정한다.
-3. **Environment Variables**에 `.env.example`의 다섯 값을 넣는다.
+3. **Environment Variables**에 `.env.example`의 값을 모두 넣는다.
    - `SUPABASE_SERVICE_ROLE_KEY`는 절대 `NEXT_PUBLIC_`을 붙이지 않는다.
    - `ADMIN_PASSWORD`는 팀원끼리만 공유한다.
-4. Deploy. 나온 주소(`https://xxx.vercel.app`)로 `/admin`에 들어가 테스트 팀을 만든다. 팀 링크가 화면에 나온다.
+4. 알림 예약 작업이 앱을 부를 주소와 비밀 값을 Supabase **SQL Editor**에서 Vault에 넣는다(저장소에 올리지 않는다):
+   ```sql
+   select vault.create_secret('https://<도메인>/api/cron/remind', 'boim_cron_url');
+   select vault.create_secret('<CRON_SECRET과 같은 값>', 'boim_cron_secret');
+   ```
+5. Deploy. 나온 주소(`https://xxx.vercel.app`)로 `/admin`에 들어가 테스트 팀을 만든다. 팀 링크가 화면에 나온다.
 
 ### 3. 테스트 전 확인
 - 팀 링크를 시크릿 창과 로그아웃한 폰에서 열어 본다.
@@ -61,7 +68,7 @@ npm run dev
 
 ## 이번에 만들지 않은 것
 
-로그인 · 자동 검수(AI 판별) · 푸시 알림 · 외부 연동 · 결제. 가정을 확인하는 데 필요 없거나 사람이 대신할 수 있다. 수요가 확인되면(첨부율 60% 이상) 로그인과 알림부터 붙인다.
+로그인 · 자동 검수(AI 판별) · 외부 연동 · 결제. 가정을 확인하는 데 필요 없거나 사람이 대신할 수 있다. 수요가 확인되면(첨부율 60% 이상) 로그인과 알림부터 붙인다.
 
 ## 나중에 앱으로 확장할 때
 

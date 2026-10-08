@@ -13,7 +13,7 @@ export type Submission = {
 };
 export type Task = {
   id: string; seq: number; code: string; title: string; owner_id: string; owner: string;
-  due: string; rule: string; reminded_at: string | null; status: Status; latest: Submission | null; submissions: Submission[];
+  due: string; due_time: string; rule: string; status: Status; latest: Submission | null; submissions: Submission[];
 };
 
 export function statusOf(latest: Submission | null): Status {
@@ -37,9 +37,10 @@ export async function membersOf(teamId: string): Promise<Member[]> {
 export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
   const { data } = await db()
     .from("tasks")
-    .select("id, seq, title, owner_id, due, rule, reminded_at, submissions(id, uploader_id, file_path, file_name, link_url, note, review, review_note, created_at)")
+    .select("id, seq, title, owner_id, due, due_time, rule, submissions(id, uploader_id, file_path, file_name, link_url, note, review, review_note, created_at)")
     .eq("team_id", team.id)
     .order("due")
+    .order("due_time")
     .order("seq");
   const name = new Map(members.map((m) => [m.id, m.code]));
   return (data ?? []).map((t) => {
@@ -47,7 +48,7 @@ export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
     const latest = subs[0] ?? null;
     return {
       id: t.id, seq: t.seq, code: `${team.code}-${t.seq}`, title: t.title, owner_id: t.owner_id,
-      owner: name.get(t.owner_id) ?? "?", due: t.due, rule: t.rule, reminded_at: t.reminded_at, status: statusOf(latest), latest, submissions: subs,
+      owner: name.get(t.owner_id) ?? "?", due: t.due, due_time: String(t.due_time).slice(0, 5), rule: t.rule, status: statusOf(latest), latest, submissions: subs,
     };
   });
 }

@@ -25,15 +25,6 @@ export async function review(formData: FormData) {
   revalidatePath("/admin");
 }
 
-/** 마감 하루 전 카톡 DM을 보낸 뒤 누른다. 이 시각 뒤에 올린 것은 판정에서 뺀다. */
-export async function markReminded(formData: FormData) {
-  await requireAdmin();
-  const id = String(formData.get("task") ?? "");
-  const undo = formData.get("undo") === "1";
-  await db().from("tasks").update({ reminded_at: undo ? null : new Date().toISOString() }).eq("id", id);
-  revalidatePath("/admin");
-}
-
 export async function createTeam(_prev: AdminState, formData: FormData): Promise<AdminState> {
   await requireAdmin();
   const code = String(formData.get("code") ?? "").trim().toUpperCase();

@@ -93,5 +93,8 @@ table { border-collapse: collapse; width: 100%; font-size: .88rem; }
 th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 500; }
 .copy { font-family: var(--mono); font-size: .8rem; background: var(--bg); padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
-.remind-row { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; }
-.remind-row > span:first-of-type { flex: 1 1 240px; min-width: 0; }
+.field-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.notify { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 10px;
+  border: 1px dashed var(--accent); font-size: .88rem; }
+.notify > span { flex: 1 1 220px; min-width: 0; }
+.small-btn { width: auto; padding: 8px 14px; }
