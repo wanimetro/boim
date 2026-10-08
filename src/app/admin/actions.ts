@@ -25,22 +25,9 @@ export async function review(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function createTeam(_prev: AdminState, formData: FormData): Promise<AdminState> {
+/** 테스트 대상이 아닌 팀을 판정에서 빼거나 다시 넣는다 */
+export async function toggleStudy(formData: FormData) {
   await requireAdmin();
-  const code = String(formData.get("code") ?? "").trim().toUpperCase();
-  const name = String(formData.get("name") ?? "").trim();
-  const memberCodes = [...new Set(String(formData.get("members") ?? "")
-    .split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter(Boolean))];
-  const leader = String(formData.get("leader") ?? "").trim().toUpperCase();
-
-  if (!/^T\d{1,2}$/.test(code)) return { error: "팀 코드는 T1, T2 처럼 적어 주세요." };
-  if (!name) return { error: "팀 이름을 적어 주세요. 예: T1 · 마케팅원론 팀 발표" };
-  if (memberCodes.length < 2 || memberCodes.some((c) => !/^U\d{2,3}$/.test(c)))
-    return { error: "팀원 번호를 U01, U02 처럼 쉼표로 나눠 두 명 이상 적어 주세요. 실명은 넣지 않습니다." };
-
-  const { data: team, error } = await db().from("teams").insert({ code, name }).select("id").single();
-  if (error || !team) return { error: error?.code === "23505" ? `${code}는 이미 있습니다.` : "팀을 만들지 못했습니다." };
-  await db().from("members").insert(memberCodes.map((c) => ({ team_id: team.id, code: c, is_leader: c === leader })));
+  await db().from("teams").update({ in_study: formData.get("in_study") === "1" }).eq("id", String(formData.get("id") ?? ""));
   revalidatePath("/admin");
-  return { ok: `${code} 팀을 만들었습니다.` };
 }

@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const to = new Date(now + 864e5).toISOString().slice(0, 10);
   const { data: tasks, error } = await db()
     .from("tasks")
-    .select("id, seq, title, due, due_time, owner_id, teams(code, token), submissions(review, created_at)")
+    .select("id, seq, title, due, due_time, owner_id, members!tasks_owner_id_fkey(user_id), teams(code, token), submissions(review, created_at)")
     .gte("due", from).lte("due", to);
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
@@ -42,8 +42,10 @@ export async function POST(request: Request) {
       .eq("task_id", t.id).eq("kind", kind);
     const done = new Set((already ?? []).map((n) => n.endpoint));
 
-    const { data: devices } = await db().from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth").eq("member_id", t.owner_id);
+    const ownerUser = (t.members as unknown as { user_id: string | null } | null)?.user_id;
+    const { data: devices } = ownerUser
+      ? await db().from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", ownerUser)
+      : { data: [] };
 
     if (!devices?.length) {
       if (!done.has("")) {

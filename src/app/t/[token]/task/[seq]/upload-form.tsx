@@ -9,8 +9,8 @@ const storage = () =>
     auth: { persistSession: false },
   }).storage.from("submissions");
 
-export function UploadForm({ token, seq, isOwner, ownerCode, meCode }: {
-  token: string; seq: number; isOwner: boolean; ownerCode: string; meCode: string;
+export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
+  token: string; seq: number; isOwner: boolean; ownerName: string; meName: string;
 }) {
   const [mode, setMode] = useState<"file" | "link">("file");
   const [file, setFile] = useState<File | null>(null);
@@ -56,7 +56,7 @@ export function UploadForm({ token, seq, isOwner, ownerCode, meCode }: {
       <h2>결과물 올리기</h2>
       {!isOwner && (
         <p className="callout warn-box small">
-          이 업무의 담당은 <b className="num">{ownerCode}</b>입니다. <b className="num">{meCode}</b> 님이 대신 올리는 것으로 기록됩니다.
+          이 업무의 담당은 <b>{ownerName}</b> 님입니다. <b>{meName}</b> 님이 대신 올리는 것으로 기록됩니다.
         </p>
       )}
       <div className="seg" role="tablist" aria-label="올리는 방식">

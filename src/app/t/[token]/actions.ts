@@ -3,14 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db, BUCKET } from "@/lib/supabase";
-import { teamByToken, membersOf, currentMember, setCurrentMember } from "@/lib/data";
-
-async function load(token: string) {
-  const team = await teamByToken(token);
-  if (!team) throw new Error("팀 링크가 올바르지 않습니다.");
-  const members = await membersOf(team.id);
-  return { team, members };
-}
+import { newInviteCode } from "@/lib/data";
+import { memberOnly } from "@/lib/team-access";
 
 async function taskBySeq(teamId: string, seq: number) {
   const { data } = await db().from("tasks").select("id, seq").eq("team_id", teamId).eq("seq", seq).maybeSingle();
@@ -18,20 +12,10 @@ async function taskBySeq(teamId: string, seq: number) {
   return data;
 }
 
-export async function chooseMe(token: string, formData: FormData) {
-  const { team, members } = await load(token);
-  const id = String(formData.get("member") ?? "");
-  if (!members.some((m) => m.id === id)) return;
-  await setCurrentMember(team, id);
-  const back = String(formData.get("back") ?? "");
-  redirect(back.startsWith(`/t/${token}`) ? back : `/t/${token}`);
-}
-
 export type FormState = { error?: string };
 
 export async function createTask(token: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { team, members } = await load(token);
-  const me = await currentMember(team, members);
+  const { team, members, me } = await memberOnly(token);
   const title = String(formData.get("title") ?? "").trim();
   const owner = String(formData.get("owner") ?? "");
   const due = String(formData.get("due") ?? "");
@@ -47,38 +31,45 @@ export async function createTask(token: string, _prev: FormState, formData: Form
   const { data: last } = await db().from("tasks").select("seq").eq("team_id", team.id)
     .order("seq", { ascending: false }).limit(1).maybeSingle();
   const { error } = await db().from("tasks").insert({
-    team_id: team.id, seq: (last?.seq ?? 0) + 1, title, owner_id: owner, due, due_time: dueTime, rule, created_by: me?.id ?? null,
+    team_id: team.id, seq: (last?.seq ?? 0) + 1, title, owner_id: owner, due, due_time: dueTime, rule, created_by: me.id,
   });
   if (error) return { error: "저장하지 못했습니다. 잠시 후 다시 시도해 주세요." };
   revalidatePath(`/t/${token}`);
   redirect(`/t/${token}`);
 }
 
-/** 이 기기에서 앱 알림을 켠다. 알림은 지금 고른 "나"의 업무에만 간다. */
+/** 팀장이 초대 코드를 새로 만든다. 예전 코드·링크는 더 이상 쓸 수 없다. */
+export async function regenerateInvite(token: string) {
+  const { team, me } = await memberOnly(token);
+  if (!me.is_leader) throw new Error("팀장만 초대 코드를 바꿀 수 있습니다.");
+  for (let i = 0; i < 5; i++) {
+    const { error } = await db().from("teams").update({ invite_code: newInviteCode() }).eq("id", team.id);
+    if (!error) break;
+  }
+  revalidatePath(`/t/${token}`);
+}
+
+/** 이 기기에서 앱 알림을 켠다. 알림은 이 계정이 담당인 업무에 간다(모든 팀). */
 export async function savePush(token: string, sub: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<FormState> {
-  const { team, members } = await load(token);
-  const me = await currentMember(team, members);
-  if (!me) return { error: "먼저 내 번호를 골라 주세요." };
+  const { user } = await memberOnly(token);
   if (!/^https:\/\/\S+$/.test(sub.endpoint) || !sub.keys?.p256dh || !sub.keys?.auth) return { error: "알림을 켜지 못했습니다." };
   const { error } = await db().from("push_subscriptions").upsert(
-    { member_id: me.id, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+    { user_id: user.id, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth },
     { onConflict: "endpoint" },
   );
   return error ? { error: "알림을 켜지 못했습니다." } : {};
 }
 
 export async function removePush(token: string, endpoint: string) {
-  const { team, members } = await load(token);
-  const me = await currentMember(team, members);
-  if (!me) return;
-  await db().from("push_subscriptions").delete().eq("endpoint", endpoint).eq("member_id", me.id);
+  const { user } = await memberOnly(token);
+  await db().from("push_subscriptions").delete().eq("endpoint", endpoint).eq("user_id", user.id);
 }
 
 const MAX_BYTES = 20 * 1024 * 1024;
 
 /** 브라우저가 Supabase Storage에 바로 올릴 수 있는 서명 URL을 발급한다 (Vercel 요청 크기 제한 회피). */
 export async function prepareUpload(token: string, seq: number, fileName: string, size: number) {
-  const { team } = await load(token);
+  const { team } = await memberOnly(token);
   const task = await taskBySeq(team.id, seq);
   if (size > MAX_BYTES) return { error: "20MB보다 큰 파일은 링크(구글 드라이브 등)로 보내 주세요." };
   const ext = (fileName.match(/\.[A-Za-z0-9]{1,8}$/)?.[0] ?? "").toLowerCase();
@@ -92,9 +83,7 @@ export async function submitWork(
   token: string, seq: number,
   input: { path?: string; fileName?: string; link?: string; note?: string },
 ): Promise<FormState> {
-  const { team, members } = await load(token);
-  const me = await currentMember(team, members);
-  if (!me) return { error: "먼저 내 번호를 골라 주세요." };
+  const { team, me } = await memberOnly(token);
   const task = await taskBySeq(team.id, seq);
 
   const path = input.path && input.path.startsWith(`${team.code}/${task.seq}/`) ? input.path : null;

@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { createTask, type FormState } from "../actions";
 
 export function NewTaskForm({ token, members, minDate }: {
-  token: string; members: { id: string; code: string }[]; minDate: string;
+  token: string; members: { id: string; name: string }[]; minDate: string;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(createTask.bind(null, token), {});
   return (
@@ -16,8 +16,8 @@ export function NewTaskForm({ token, members, minDate }: {
       <label className="field">
         <span>담당</span>
         <select id="owner" name="owner" required defaultValue="">
-          <option value="" disabled>담당 번호 고르기</option>
-          {members.map((m) => <option key={m.id} value={m.id}>{m.code}</option>)}
+          <option value="" disabled>담당 고르기</option>
+          {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </label>
       <div className="field-row">

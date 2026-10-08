@@ -16,8 +16,8 @@ const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) ||
 const standalone = () => window.matchMedia("(display-mode: standalone)").matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-/** 마감 1시간 전·30분 전 알림 켜기. 이 기기에서 고른 "내 번호"의 업무만 온다. */
-export function NotifyToggle({ token, meCode }: { token: string; meCode: string }) {
+/** 마감 1시간 전·30분 전 알림 켜기. 이 계정이 담당인 업무(모든 팀)에 대해 온다. */
+export function NotifyToggle({ token }: { token: string }) {
   const [state, setState] = useState<State>("loading");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -67,7 +67,7 @@ export function NotifyToggle({ token, meCode }: { token: string; meCode: string 
     <section className="notify">
       {state === "on" && (
         <>
-          <span><b>알림 켜짐</b> · <span className="num">{meCode}</span> 업무의 마감 1시간 전·30분 전에 알려 드립니다.</span>
+          <span><b>알림 켜짐</b> · 내가 담당인 업무의 마감 1시간 전·30분 전에 알려 드립니다.</span>
           <button className="link-btn" onClick={turnOff} disabled={pending}>끄기</button>
         </>
       )}

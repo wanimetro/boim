@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { isAdmin } from "@/lib/admin";
 import { db, BUCKET } from "@/lib/supabase";
 import { membersOf, tasksOf, type Team } from "@/lib/data";
 import { dateTime, dueLabel, md, today } from "@/lib/format";
 import { firstDeadline, tally, verdict } from "@/lib/metrics";
-import { LoginForm, TeamForm } from "./forms";
-import { review } from "./actions";
+import { LoginForm } from "./forms";
+import { review, toggleStudy } from "./actions";
 
 export const metadata: Metadata = { title: "보임 운영", robots: { index: false } };
 
@@ -22,11 +21,10 @@ export default async function Admin() {
     );
   }
 
-  const h = await headers();
-  const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const { data: teams } = await db().from("teams").select("id, code, name, token").order("code");
+  const { data: teams } = await db().from("teams")
+    .select("id, code, name, token, invite_code, in_study, created_at").order("created_at");
 
-  const rows = await Promise.all((teams ?? []).map(async (team: Team) => {
+  const rows = await Promise.all((teams ?? []).map(async (team: Team & { in_study: boolean; created_at: string }) => {
     const members = await membersOf(team.id);
     const tasks = await tasksOf(team, members);
     const { count: views } = await db().from("views").select("id", { count: "exact", head: true }).eq("team_id", team.id);
@@ -35,25 +33,26 @@ export default async function Admin() {
   }));
 
   const now = today();
-  const sum = rows.reduce((a, r) => ({ total: a.total + r.c.total, ok: a.ok + r.c["self-before"] }), { total: 0, ok: 0 });
+  const study = rows.filter((r) => r.team.in_study);
+  const sum = study.reduce((a, r) => ({ total: a.total + r.c.total, ok: a.ok + r.c["self-before"] }), { total: 0, ok: 0 });
   const rate = sum.total ? sum.ok / sum.total : 0;
-  const closed = rows.length > 0 && rows.every((r) => r.first.due && r.first.due < now);
+  const closed = study.length > 0 && study.every((r) => r.first.due && r.first.due < now);
   const v = verdict(rate, sum.total, closed);
 
   // 앱 알림 발송 현황
-  const memberIds = rows.flatMap((r) => r.members.map((m) => m.id));
+  const userIds = rows.flatMap((r) => r.members.map((m) => m.user_id).filter(Boolean)) as string[];
   const [{ data: devices }, { data: sent }] = await Promise.all([
-    db().from("push_subscriptions").select("member_id").in("member_id", memberIds.length ? memberIds : [""]),
+    db().from("push_subscriptions").select("user_id").in("user_id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]),
     db().from("notifications").select("task_id, member_id, kind, status, error, sent_at").order("sent_at", { ascending: false }).limit(500),
   ]);
-  const withDevice = new Set((devices ?? []).map((d) => d.member_id));
+  const withDevice = new Set((devices ?? []).map((d) => d.user_id));
   const taskInfo = new Map(rows.flatMap((r) => r.tasks.map((t) => [t.id, { team: r.team.id, t }] as const)));
   const memberCode = new Map(rows.flatMap((r) => r.members.map((m) => [m.id, m.code] as const)));
   const pushStats = rows.map((r) => {
     const mine = (sent ?? []).filter((n) => taskInfo.get(n.task_id)?.team === r.team.id);
     const n = (kind: string, status: string) => mine.filter((x) => x.kind === kind && x.status === status).length;
     return {
-      r, on: r.members.filter((m) => withDevice.has(m.id)).length,
+      r, on: r.members.filter((m) => m.user_id && withDevice.has(m.user_id)).length,
       s60: n("60", "sent"), s30: n("30", "sent"),
       failed: mine.filter((x) => x.status === "failed").length,
       noDevice: mine.filter((x) => x.status === "no_device").length,
@@ -85,7 +84,7 @@ export default async function Admin() {
           <table>
             <thead><tr><th>팀</th><th>첫 마감</th><th>항목</th><th>24시간 전 본인</th><th>24시간 안 본인</th><th>대신</th><th>마감 후</th><th>없음</th><th>비율</th><th>열람</th></tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {study.map((r) => (
                 <tr key={r.team.id}>
                   <td>{r.team.code}</td><td className="num">{r.first.due ? md(r.first.due) : "–"}</td>
                   <td className="num">{r.c.total}</td><td className="num">{r.c["self-before"]}</td>
@@ -150,7 +149,7 @@ export default async function Admin() {
               <h3>{t.title}</h3>
               <p className="rulebox">{t.rule}</p>
               <p className="small">
-                담당 <b className="num">{t.owner}</b> · 올린 사람 <b className="num">{uploader}</b>{" "}
+                담당 <b className="num">{t.owner_code}</b> · 올린 사람 <b className="num">{uploader}</b>{" "}
                 <span className={`pill ${self ? "s-done" : "s-wait"}`}>{self ? "본인" : "대신"}</span>
               </p>
               <p className="small clip">
@@ -170,16 +169,34 @@ export default async function Admin() {
         })}
       </section>
 
-      <section className="stack">
-        <h2>팀과 링크</h2>
-        {rows.map((r) => (
-          <div key={r.team.id} className="panel">
-            <h3>{r.team.name}</h3>
-            <p className="small">팀원 {r.members.map((m) => m.code + (m.is_leader ? "(팀장)" : "")).join(", ")}</p>
-            <code className="copy">{`${origin}/t/${r.team.token}`}</code>
-          </div>
-        ))}
-        <TeamForm />
+      <section className="panel">
+        <h2>팀 흐름</h2>
+        <p className="muted small">팀은 사용자가 직접 만들고 초대 링크로 팀원을 부릅니다. 테스트 대상이 아닌 팀(우리 팀, 장난 가입 등)은 “판정 제외”로 빼 주세요.</p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>팀</th><th>이름</th><th>만든 날</th><th>팀원</th><th>업무</th><th>올림</th><th>열람</th><th>판정</th></tr></thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.team.id}>
+                  <td>{r.team.code}</td>
+                  <td className="clip">{r.team.name}</td>
+                  <td className="num">{dateTime(r.team.created_at)}</td>
+                  <td className="num">{r.members.length}</td>
+                  <td className="num">{r.tasks.length}</td>
+                  <td className="num">{r.tasks.reduce((a, t) => a + t.submissions.length, 0)}</td>
+                  <td className="num">{r.views}</td>
+                  <td>
+                    <form action={toggleStudy}>
+                      <input type="hidden" name="id" value={r.team.id} />
+                      <input type="hidden" name="in_study" value={r.team.in_study ? "0" : "1"} />
+                      <button className="link-btn small">{r.team.in_study ? "포함 · 빼기" : "제외 · 넣기"}</button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </main>
   );

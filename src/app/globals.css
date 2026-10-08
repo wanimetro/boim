@@ -98,3 +98,17 @@ th { color: var(--muted); font-weight: 500; }
   border: 1px dashed var(--accent); font-size: .88rem; }
 .notify > span { flex: 1 1 220px; min-width: 0; }
 .small-btn { width: auto; padding: 8px 14px; }
+.user-bar { display: flex; align-items: center; gap: 12px; }
+.user-bar .brand { font-weight: 700; color: var(--accent); text-decoration: none; margin-right: auto; }
+.user-bar form { display: contents; }
+.copy-row { display: flex; gap: 8px; align-items: center; }
+.copy-row .copy, .code-input { flex: 1; min-width: 0; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 10px 12px; border-radius: 8px; font-size: .95rem; }
+.code-input { font-family: var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.invite summary { cursor: pointer; list-style: none; }
+.invite summary::-webkit-details-marker { display: none; }
+.invite summary h2::after { content: " ▾"; color: var(--muted); font-weight: 400; }
+.invite[open] summary h2::after { content: " ▴"; }
+.divider { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .8rem; }
+.divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.social.kakao { background: #fee500; color: #191600; border-color: #fee500; }
+.social.google { background: var(--surface); color: var(--fg); border-color: var(--line); }
