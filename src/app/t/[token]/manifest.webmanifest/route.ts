@@ -11,8 +11,8 @@ export async function GET(_req: Request, ctx: RouteContext<"/t/[token]/manifest.
     start_url: `/t/${token}`,
     scope: `/t/${token}`,
     display: "standalone",
-    background_color: "#f3f5f4",
-    theme_color: "#1f6f5c",
+    background_color: "#f4f7fc",
+    theme_color: "#014ffd",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
