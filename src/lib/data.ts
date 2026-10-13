@@ -13,7 +13,7 @@ export type Submission = {
   link_url: string | null; note: string | null; review: Review; review_note: string | null; created_at: string;
 };
 export type Task = {
-  id: string; seq: number; code: string; title: string; owner_id: string;
+  id: string; seq: number; code: string; title: string; owner_id: string; created_by: string | null;
   owner: string; owner_code: string;
   due: string; due_time: string; rule: string; status: Status; latest: Submission | null; submissions: Submission[];
 };
@@ -53,7 +53,7 @@ export async function membersOf(teamId: string): Promise<Member[]> {
 export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
   const { data } = await db()
     .from("tasks")
-    .select("id, seq, title, owner_id, due, due_time, rule, submissions(id, uploader_id, file_path, file_name, link_url, note, review, review_note, created_at)")
+    .select("id, seq, title, owner_id, created_by, due, due_time, rule, submissions(id, uploader_id, file_path, file_name, link_url, note, review, review_note, created_at)")
     .eq("team_id", team.id)
     .order("due")
     .order("due_time")
@@ -64,7 +64,7 @@ export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
     const latest = subs[0] ?? null;
     const o = byId.get(t.owner_id);
     return {
-      id: t.id, seq: t.seq, code: `${team.code}-${t.seq}`, title: t.title, owner_id: t.owner_id,
+      id: t.id, seq: t.seq, code: `${team.code}-${t.seq}`, title: t.title, owner_id: t.owner_id, created_by: t.created_by,
       owner: o?.nickname ?? "?", owner_code: o?.code ?? "?",
       due: t.due, due_time: String(t.due_time).slice(0, 5), rule: t.rule, status: statusOf(latest), latest, submissions: subs,
     };

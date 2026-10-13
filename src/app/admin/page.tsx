@@ -60,6 +60,17 @@ export default async function Admin() {
   });
   const recent = (sent ?? []).slice(0, 15);
 
+  // 업무 수정 기록: 판정을 해석할 때 기준·마감이 바뀌었는지 본다
+  const { data: edits } = await db().from("task_edits").select("task_id, after, created_at").order("created_at", { ascending: false });
+  const editsOf = (taskId: string) => (edits ?? []).filter((e) => e.task_id === taskId);
+  const editLabel = (taskId: string) => {
+    const list = editsOf(taskId);
+    if (!list.length) return null;
+    const keys = new Set(list.flatMap((e) => Object.keys(e.after as object)));
+    const names = [keys.has("rule") && "완료 기준", (keys.has("due") || keys.has("due_time")) && "마감", keys.has("owner_id") && "담당", keys.has("title") && "업무 이름"].filter(Boolean);
+    return `수정 ${list.length}회 (${names.join(", ")}) · 마지막 ${dateTime(list[0].created_at)}`;
+  };
+
   const queue = rows.flatMap((r) => r.tasks.flatMap((t) =>
     t.submissions.filter((s) => s.review === "pending").map((s) => ({ r, t, s }))));
   queue.sort((a, b) => a.s.created_at.localeCompare(b.s.created_at));
@@ -148,6 +159,7 @@ export default async function Admin() {
               <span className="eyebrow"><span className="num">{t.code}</span> · 마감 {dueLabel(t.due, t.due_time)} · 올림 {dateTime(s.created_at)}</span>
               <h3>{t.title}</h3>
               <p className="rulebox">{t.rule}</p>
+              {editLabel(t.id) && <p className="small warn">{editLabel(t.id)}</p>}
               <p className="small">
                 담당 <b className="num">{t.owner_code}</b> · 올린 사람 <b className="num">{uploader}</b>{" "}
                 <span className={`pill ${self ? "s-done" : "s-wait"}`}>{self ? "본인" : "대신"}</span>
@@ -174,7 +186,7 @@ export default async function Admin() {
         <p className="muted small">팀은 사용자가 직접 만들고 초대 링크로 팀원을 부릅니다. 테스트 대상이 아닌 팀(우리 팀, 장난 가입 등)은 “판정 제외”로 빼 주세요.</p>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>팀</th><th>이름</th><th>만든 날</th><th>팀원</th><th>업무</th><th>올림</th><th>열람</th><th>판정</th></tr></thead>
+            <thead><tr><th>팀</th><th>이름</th><th>만든 날</th><th>팀원</th><th>업무</th><th>수정</th><th>올림</th><th>열람</th><th>판정</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.team.id}>
@@ -183,6 +195,7 @@ export default async function Admin() {
                   <td className="num">{dateTime(r.team.created_at)}</td>
                   <td className="num">{r.members.length}</td>
                   <td className="num">{r.tasks.length}</td>
+                  <td className="num">{r.tasks.reduce((a, t) => a + editsOf(t.id).length, 0)}</td>
                   <td className="num">{r.tasks.reduce((a, t) => a + t.submissions.length, 0)}</td>
                   <td className="num">{r.views}</td>
                   <td>

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db, BUCKET } from "@/lib/supabase";
 import { newInviteCode } from "@/lib/data";
 import { memberOnly } from "@/lib/team-access";
+import { deadlineMs } from "@/lib/format";
 
 async function taskBySeq(teamId: string, seq: number) {
   const { data } = await db().from("tasks").select("id, seq").eq("team_id", teamId).eq("seq", seq).maybeSingle();
@@ -14,28 +15,61 @@ async function taskBySeq(teamId: string, seq: number) {
 
 export type FormState = { error?: string };
 
-export async function createTask(token: string, _prev: FormState, formData: FormData): Promise<FormState> {
-  const { team, members, me } = await memberOnly(token);
+type TaskInput = { title: string; owner_id: string; due: string; due_time: string; rule: string };
+
+/** 등록·수정 공통 검사. 통과하면 값, 아니면 안내 문구 */
+function readTaskForm(formData: FormData, memberIds: string[]): TaskInput | { error: string } {
   const title = String(formData.get("title") ?? "").trim();
-  const owner = String(formData.get("owner") ?? "");
+  const owner_id = String(formData.get("owner") ?? "");
   const due = String(formData.get("due") ?? "");
-  const dueTime = String(formData.get("due_time") || "23:59");
+  const due_time = String(formData.get("due_time") || "23:59");
   const rule = String(formData.get("rule") ?? "").trim();
 
   if (!title || title.length > 80) return { error: "업무 이름을 80자 안으로 적어 주세요." };
-  if (!members.some((m) => m.id === owner)) return { error: "담당을 골라 주세요." };
+  if (!memberIds.includes(owner_id)) return { error: "담당을 골라 주세요." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) return { error: "중간 마감 날짜를 골라 주세요." };
-  if (!/^\d{2}:\d{2}$/.test(dueTime)) return { error: "마감 시각을 다시 골라 주세요." };
+  if (!/^\d{2}:\d{2}$/.test(due_time)) return { error: "마감 시각을 다시 골라 주세요." };
+  if (deadlineMs(due, due_time) <= Date.now()) return { error: "마감은 지금보다 뒤로 정해 주세요." };
   if (rule.length < 5 || rule.length > 200) return { error: "완료 기준을 파일을 보고 판단할 수 있게 한 줄로 적어 주세요." };
+  return { title, owner_id, due, due_time, rule };
+}
+
+export async function createTask(token: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { team, members, me } = await memberOnly(token);
+  const input = readTaskForm(formData, members.map((m) => m.id));
+  if ("error" in input) return input;
 
   const { data: last } = await db().from("tasks").select("seq").eq("team_id", team.id)
     .order("seq", { ascending: false }).limit(1).maybeSingle();
-  const { error } = await db().from("tasks").insert({
-    team_id: team.id, seq: (last?.seq ?? 0) + 1, title, owner_id: owner, due, due_time: dueTime, rule, created_by: me.id,
-  });
+  const { error } = await db().from("tasks").insert({ team_id: team.id, seq: (last?.seq ?? 0) + 1, ...input, created_by: me.id });
   if (error) return { error: "저장하지 못했습니다. 잠시 후 다시 시도해 주세요." };
   revalidatePath(`/t/${token}`);
   redirect(`/t/${token}`);
+}
+
+export async function updateTask(token: string, seq: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { team, members, me } = await memberOnly(token);
+  const { data: task } = await db().from("tasks")
+    .select("id, title, owner_id, due, due_time, rule, created_by").eq("team_id", team.id).eq("seq", seq).maybeSingle();
+  if (!task) return { error: "업무를 찾을 수 없습니다." };
+  if (!(me.is_leader || task.created_by === me.id)) return { error: "팀장이나 이 업무를 등록한 사람만 고칠 수 있습니다." };
+  if (deadlineMs(task.due, String(task.due_time)) <= Date.now()) return { error: "마감이 지난 업무는 고칠 수 없습니다." };
+
+  const input = readTaskForm(formData, members.map((m) => m.id));
+  if ("error" in input) return input;
+  const before = { title: task.title, owner_id: task.owner_id, due: task.due, due_time: String(task.due_time).slice(0, 5), rule: task.rule };
+  const changed = (Object.keys(input) as (keyof TaskInput)[]).filter((k) => input[k] !== before[k]);
+  if (changed.length === 0) redirect(`/t/${token}/task/${seq}`);
+
+  const { error } = await db().from("tasks").update(input).eq("id", task.id);
+  if (error) return { error: "저장하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+  await db().from("task_edits").insert({
+    task_id: task.id, member_id: me.id,
+    before: Object.fromEntries(changed.map((k) => [k, before[k]])),
+    after: Object.fromEntries(changed.map((k) => [k, input[k]])),
+  });
+  revalidatePath(`/t/${token}`);
+  redirect(`/t/${token}/task/${seq}`);
 }
 
 /** 팀장이 초대 코드를 새로 만든다. 예전 코드·링크는 더 이상 쓸 수 없다. */

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { tasksOf, teamsOfUser } from "@/lib/data";
-import { openTeam } from "@/lib/team-access";
+import { openTeam, canEditTask } from "@/lib/team-access";
 import { dday, dueLabel, dateTime, STATUS_LABEL } from "@/lib/format";
 import { AppShell } from "@/app/app-shell";
 import { NotMember } from "../../not-member";
@@ -30,7 +30,10 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
           <span className="num">{dueLabel(task.due, task.due_time)} ({dday(task.due)})</span>
         </span>
         <h1>{task.title}</h1>
-        <span className={`pill s-${task.status} self-start`}>{STATUS_LABEL[task.status]}</span>
+        <div className="title-row" style={{ alignItems: "center" }}>
+          <span className={`pill s-${task.status}`}>{STATUS_LABEL[task.status]}</span>
+          {canEditTask(me, task) && <Link className="link-btn" href={`/t/${token}/task/${task.seq}/edit`}>업무 수정</Link>}
+        </div>
       </header>
 
       {/* 모바일: 기준 → 올리기 → 기록 / PC: 왼쪽 기준·기록, 오른쪽 올리기 */}

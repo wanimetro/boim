@@ -34,7 +34,7 @@
 
 ### 1. Supabase
 1. supabase.com에서 새 프로젝트를 만든다 (리전: Northeast Asia (Seoul)).
-2. **SQL Editor**에 `supabase/migrations/` 안의 파일을 번호 순서대로(`0001` → `0004`) 붙여 넣고 실행한다. 테이블 8개, 5분 알림 예약 작업, 비공개 버킷 `submissions`가 생긴다.
+2. **SQL Editor**에 `supabase/migrations/` 안의 파일을 번호 순서대로(`0001` → `0005`) 붙여 넣고 실행한다. 테이블 8개, 5분 알림 예약 작업, 비공개 버킷 `submissions`가 생긴다.
    - CLI를 쓰면: `npx supabase link --project-ref <ref>` 후 `npx supabase db push`
 3. **Project Settings → API**에서 URL, anon(publishable) 키, service_role(secret) 키를 확인한다.
 

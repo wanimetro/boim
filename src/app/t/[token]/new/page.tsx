@@ -6,7 +6,8 @@ import { today } from "@/lib/format";
 import { AppShell } from "@/app/app-shell";
 import { NotMember } from "../not-member";
 import { TeamSide } from "../team-side";
-import { NewTaskForm } from "./new-task-form";
+import { TaskForm } from "./new-task-form";
+import { createTask } from "../actions";
 
 export default async function NewTask({ params }: PageProps<"/t/[token]/new">) {
   const { token } = await params;
@@ -29,7 +30,7 @@ export default async function NewTask({ params }: PageProps<"/t/[token]/new">) {
         {members.length < 2 && (
           <p className="callout warn-box small">아직 팀에 혼자 있습니다. “팀원 초대”에서 팀원을 먼저 부르면 담당을 고를 수 있습니다.</p>
         )}
-        <NewTaskForm token={token} members={members.map((m) => ({ id: m.id, name: m.nickname }))} minDate={today()} />
+        <TaskForm action={createTask.bind(null, token)} members={members.map((m) => ({ id: m.id, name: m.nickname }))} minDate={today()} submitLabel="등록하기" />
       </div>
     </AppShell>
   );
