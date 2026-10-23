@@ -1,13 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { uploadSignedFile } from "@/client/storage-upload";
 import { prepareUpload, submitWork } from "../../actions";
-
-const storage = () =>
-  createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    auth: { persistSession: false },
-  }).storage.from("submissions");
 
 export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
   token: string; seq: number; isOwner: boolean; ownerName: string; meName: string;
@@ -29,7 +24,7 @@ export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
         if (!file) return setError("올릴 파일을 골라 주세요.");
         const prep = await prepareUpload(token, seq, file.name, file.size);
         if ("error" in prep) return setError(prep.error ?? "업로드를 준비하지 못했습니다.");
-        const { error: upErr } = await storage().uploadToSignedUrl(prep.path, prep.signedToken, file);
+        const { error: upErr } = await uploadSignedFile(prep.path, prep.signedToken, file);
         if (upErr) return setError("파일을 올리지 못했습니다. 연결을 확인하고 다시 시도해 주세요.");
         path = prep.path;
       }

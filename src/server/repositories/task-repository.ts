@@ -22,20 +22,12 @@ export const taskRepository = {
     return data;
   },
   async create(teamId: string, memberId: string, input: TaskInput) {
-    const { data: last, error: readError } = await db().from("tasks").select("seq")
-      .eq("team_id", teamId).order("seq", { ascending: false }).limit(1).maybeSingle();
-    if (readError) throw readError;
-    const { error } = await db().from("tasks").insert({
-      team_id: teamId, seq: (last?.seq ?? 0) + 1, ...input, created_by: memberId,
-    });
+    const { error } = await db().rpc("create_task_atomic", { p_team_id: teamId, p_member_id: memberId, p_input: input });
     if (error) throw error;
   },
-  async update(taskId: string, input: TaskInput) {
-    const { error } = await db().from("tasks").update(input).eq("id", taskId);
+  async updateWithEdit(taskId: string, memberId: string, input: TaskInput): Promise<boolean> {
+    const { data, error } = await db().rpc("update_task_with_edit", { p_task_id: taskId, p_member_id: memberId, p_input: input });
     if (error) throw error;
-  },
-  async appendEdit(taskId: string, memberId: string, before: Partial<TaskInput>, after: Partial<TaskInput>) {
-    const { error } = await db().from("task_edits").insert({ task_id: taskId, member_id: memberId, before, after });
-    if (error) throw error;
+    return Boolean(data);
   },
 };

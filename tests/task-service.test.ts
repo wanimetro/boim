@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/server/repositories/task-repository", () => ({
-  taskRepository: { findTeam: vi.fn(), listMembers: vi.fn(), findTask: vi.fn(), create: vi.fn(), update: vi.fn(), appendEdit: vi.fn() },
+  taskRepository: { findTeam: vi.fn(), listMembers: vi.fn(), findTask: vi.fn(), create: vi.fn(), updateWithEdit: vi.fn() },
 }));
 import { taskRepository } from "@/server/repositories/task-repository";
 import { createTaskForUser, updateTaskForUser } from "@/server/services/task-service";
@@ -17,7 +17,7 @@ beforeEach(() => {
   repo.findTeam.mockResolvedValue({ id: "team" });
   repo.listMembers.mockResolvedValue([{ id: "member", user_id: "user", is_leader: false }]);
   repo.findTask.mockResolvedValue({ ...input, id: "task", created_by: "member" });
-  repo.create.mockResolvedValue(); repo.update.mockResolvedValue(); repo.appendEdit.mockResolvedValue();
+  repo.create.mockResolvedValue(); repo.updateWithEdit.mockResolvedValue(true);
 });
 afterEach(() => vi.useRealTimers());
 
@@ -46,7 +46,7 @@ describe("task authorization and rules", () => {
   it("rejects editing by a member who is neither leader nor creator", async () => {
     repo.findTask.mockResolvedValue({ ...input, id: "task", created_by: "someone-else" });
     await expect(updateTaskForUser("user", token, 1, { ...input, title: "변경" })).resolves.toHaveProperty("error");
-    expect(repo.update).not.toHaveBeenCalled();
+    expect(repo.updateWithEdit).not.toHaveBeenCalled();
   });
   it("allows a leader to edit a task created by another member", async () => {
     repo.listMembers.mockResolvedValue([{ id: "member", user_id: "user", is_leader: true }]);
@@ -56,19 +56,19 @@ describe("task authorization and rules", () => {
   it("cannot reopen an expired task by submitting a new future deadline", async () => {
     repo.findTask.mockResolvedValue({ ...input, id: "task", created_by: "member", due: "2026-10-22" });
     await expect(updateTaskForUser("user", token, 1, input)).resolves.toEqual({ error: "마감이 지난 업무는 고칠 수 없습니다." });
-    expect(repo.update).not.toHaveBeenCalled();
+    expect(repo.updateWithEdit).not.toHaveBeenCalled();
   });
   it("does not write or log an unchanged edit", async () => {
     await expect(updateTaskForUser("user", token, 1, input)).resolves.toEqual({ ok: true, changed: false });
-    expect(repo.update).not.toHaveBeenCalled(); expect(repo.appendEdit).not.toHaveBeenCalled();
+    expect(repo.updateWithEdit).not.toHaveBeenCalled();
   });
-  it("records only changed fields and scopes the lookup to the team", async () => {
+  it("scopes the lookup to the team and uses one atomic persistence call", async () => {
     await updateTaskForUser("user", token, 7, { ...input, title: "새 발표" });
     expect(repo.findTask).toHaveBeenCalledWith("team", 7);
-    expect(repo.appendEdit).toHaveBeenCalledWith("task", "member", { title: "발표 준비" }, { title: "새 발표" });
+    expect(repo.updateWithEdit).toHaveBeenCalledWith("task", "member", { ...input, title: "새 발표" });
   });
-  it("does not report success if audit persistence fails", async () => {
-    repo.appendEdit.mockRejectedValue(new Error("internal database details"));
+  it("does not report success if atomic persistence fails", async () => {
+    repo.updateWithEdit.mockRejectedValue(new Error("internal database details"));
     await expect(updateTaskForUser("user", token, 1, { ...input, title: "변경" })).resolves.toEqual({ error: "저장하지 못했습니다. 잠시 후 다시 시도해 주세요." });
   });
 });
