@@ -2,30 +2,11 @@ import "server-only";
 import { randomBytes, randomInt } from "node:crypto";
 import { db } from "./supabase";
 
-export type Status = "done" | "wait" | "none";
-export type Review = "pending" | "pass" | "fail";
-
-export type Team = { id: string; code: string; name: string; token: string; invite_code: string | null };
-/** code(U01)는 측정용, nickname은 팀 화면용 */
-export type Member = { id: string; code: string; is_leader: boolean; user_id: string | null; nickname: string };
-export type Submission = {
-  id: string; uploader_id: string | null; file_path: string | null; file_name: string | null;
-  link_url: string | null; note: string | null; review: Review; review_note: string | null; created_at: string;
-};
-export type Task = {
-  id: string; seq: number; code: string; title: string; owner_id: string; created_by: string | null;
-  owner: string; owner_code: string;
-  due: string; due_time: string; rule: string; status: Status; latest: Submission | null; submissions: Submission[];
-};
+import { statusOf, type Team, type Member, type Submission, type Task } from "@/domain/task";
+export type { Status, Review, Team, Member, Submission, Task } from "@/domain/task";
+export { statusOf } from "@/domain/task";
 
 const TEAM_COLS = "id, code, name, token, invite_code";
-
-export function statusOf(latest: Submission | null): Status {
-  if (!latest) return "none";
-  if (latest.review === "pass") return "done";
-  if (latest.review === "pending") return "wait";
-  return "none"; // 반려되면 다시 올려야 한다
-}
 
 export async function teamByToken(token: string): Promise<Team | null> {
   if (!/^[0-9a-f]{24}$/.test(token)) return null;

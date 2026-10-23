@@ -15,10 +15,7 @@ export function md(date: string): string {
   return `${+m}/${+d}`;
 }
 
-/** 마감 시각 (서울 기준 날짜 + 시각) → epoch ms */
-export function deadlineMs(due: string, dueTime = "23:59"): number {
-  return Date.parse(`${due}T${dueTime.slice(0, 5)}:00+09:00`);
-}
+export { deadlineMs } from "@/domain/time";
 
 /** 10/9 18:00 — 23:59면 시각은 생략 */
 export function dueLabel(due: string, dueTime: string): string {

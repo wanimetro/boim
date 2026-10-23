@@ -1,5 +1,5 @@
-import type { Task } from "./data";
-import { deadlineMs } from "./format";
+import type { Task } from "@/domain/task";
+import { deadlineMs } from "@/domain/time";
 
 const DAY = 24 * 60 * 60 * 1000;
 
