@@ -34,7 +34,7 @@
 
 ### 1. Supabase
 1. supabase.com에서 새 프로젝트를 만든다 (리전: Northeast Asia (Seoul)).
-2. **SQL Editor**에 `supabase/migrations/` 안의 파일을 번호 순서대로(`0001` → `0005`) 붙여 넣고 실행한다. 테이블 8개, 5분 알림 예약 작업, 비공개 버킷 `submissions`가 생긴다.
+2. **SQL Editor**에 `supabase/migrations/` 안의 파일을 번호 순서대로(`0001` → `0006`) 붙여 넣고 실행한다. 테이블 9개, 5분 알림 예약 작업, 비공개 버킷 `submissions`가 생긴다.
    - CLI를 쓰면: `npx supabase link --project-ref <ref>` 후 `npx supabase db push`
 3. **Project Settings → API**에서 URL, anon(publishable) 키, service_role(secret) 키를 확인한다.
 
@@ -83,7 +83,9 @@ npm run dev
 
 ## 스키마 바꾸기
 
-`supabase/migrations/`에 다음 번호 파일을 추가하고 `npx supabase db push`로 운영 DB에 반영한다.
+`supabase/migrations/`에 다음 번호 파일을 추가하고 `npx supabase db push`로 운영 DB에 반영한다. 새 테이블에는 생성 마이그레이션에서 필요한 역할의 GRANT를 명시한다.
+
+Data API 권한 적용과 신규 환경 검증은 [검증 안내](docs/data-api-grants.md)를 따른다. 로컬은 `auto_expose_new_tables = false`로 자동 권한에 의존하지 않는다.
 
 ## 이번에 만들지 않은 것
 
@@ -91,4 +93,4 @@ npm run dev
 
 ## 나중에 앱으로 확장할 때
 
-계정은 Supabase Auth라 모바일 앱(React Native 등)에서 같은 계정으로 로그인할 수 있다. 지금은 서버만 DB에 접근하므로(RLS 켜고 정책 없음), 앱이 DB를 직접 읽게 하려면 `members.user_id = auth.uid()` 기준의 RLS 정책을 추가한다.
+계정은 Supabase Auth라 모바일 앱(React Native 등)에서 같은 계정으로 로그인할 수 있다. 지금은 서버만 DB에 접근하므로(RLS 켜고 정책 없음), 앱이 DB를 직접 읽게 하려면 `members.user_id = auth.uid()` 기준의 RLS 정책과 필요한 역할의 테이블 GRANT를 함께 추가한다.

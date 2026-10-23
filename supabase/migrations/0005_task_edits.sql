@@ -10,3 +10,9 @@ create table task_edits (
 );
 create index on task_edits (task_id, created_at desc);
 alter table task_edits enable row level security;
+
+-- Data API access is explicit; browser roles remain blocked by RLS.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table
+  public.task_edits
+to service_role;
