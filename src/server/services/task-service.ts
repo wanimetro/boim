@@ -59,11 +59,8 @@ export async function updateTaskForUser(userId: string | null, token: string, se
   const changed = (Object.keys(input) as (keyof TaskInput)[]).filter(key => input[key] !== before[key]);
   if (!changed.length) return { ok: true, changed: false };
   try {
-    await taskRepository.update(task.id, input);
-    await taskRepository.appendEdit(task.id, me.id,
-      Object.fromEntries(changed.map(key => [key, before[key]])),
-      Object.fromEntries(changed.map(key => [key, input[key]])));
-    return { ok: true, changed: true };
+    const saved = await taskRepository.updateWithEdit(task.id, me.id, input);
+    return { ok: true, changed: saved };
   } catch {
     return { error: SAVE_FAILED };
   }

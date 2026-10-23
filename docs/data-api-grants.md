@@ -34,3 +34,7 @@ reset은 로컬 테스트 데이터만 대상으로 한다. preview branch 또�
 ## 미확인 항목
 
 이 문서는 저장소 소스에 근거한다. 운영·preview DB ACL, 기본 권한, 객체 소유자, 수동 생성 객체, 프로젝트 설정 및 실제 API 성공 여부는 각 환경에서 별도 확인해야 한다. 저장소 변경이나 PR 생성은 운영 DB 적용 완료를 뜻하지 않는다.
+
+## 운영 적용 확인 (2026-10-23)
+
+boim의 9개 테이블 CRUD·스키마 USAGE·team_code_seq USAGE와 RLS를 확인하고 권한 SQL 및 0006 이력을 반영했다. 새 트랜잭션 RPC는 service_role에만 EXECUTE를 부여했다. anon/authenticated에서는 업무 데이터 행이 보이지 않음을 확인했다. preview/reset 환경의 전체 재생성 검증은 운영 권한 조회와 별도다.
