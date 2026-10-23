@@ -25,3 +25,10 @@ delete from push_subscriptions;
 alter table push_subscriptions drop column member_id;
 alter table push_subscriptions add column user_id uuid not null references auth.users(id) on delete cascade;
 create index on push_subscriptions (user_id);
+
+-- Data API access is explicit; browser roles remain blocked by RLS.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table
+  public.profiles
+to service_role;
+grant usage on sequence public.team_code_seq to service_role;

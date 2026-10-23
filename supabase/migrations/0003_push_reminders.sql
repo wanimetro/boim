@@ -56,3 +56,10 @@ select cron.schedule(
   where exists (select 1 from vault.decrypted_secrets where name = 'boim_cron_url');
   $$
 );
+
+-- Data API access is explicit; browser roles remain blocked by RLS.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table
+  public.push_subscriptions,
+  public.notifications
+to service_role;

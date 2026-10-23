@@ -69,3 +69,13 @@ alter table views enable row level security;
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('submissions', 'submissions', false, 20971520)
 on conflict (id) do nothing;
+
+-- Data API access is explicit; browser roles remain blocked by RLS.
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table
+  public.teams,
+  public.members,
+  public.tasks,
+  public.submissions,
+  public.views
+to service_role;
