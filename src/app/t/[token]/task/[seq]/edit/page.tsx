@@ -1,12 +1,10 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { tasksOf, teamsOfUser } from "@/lib/data";
 import { openTeam, canEditTask } from "@/lib/team-access";
 import { today } from "@/lib/format";
 import { AppShell } from "@/app/app-shell";
 import { NotMember } from "../../../not-member";
-import { TeamSide } from "../../../team-side";
 import { TaskForm } from "../../../new/new-task-form";
 import { updateTask } from "../../../actions";
 
@@ -17,13 +15,10 @@ export default async function EditTask({ params }: PageProps<"/t/[token]/task/[s
   const [tasks, teams] = await Promise.all([tasksOf(team, members), teamsOfUser(user.id)]);
   const task = tasks.find((t) => t.seq === Number(seq));
   if (!task) notFound();
-  const h = await headers();
-  const origin = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
   const editable = canEditTask(me, task);
 
   return (
-    <AppShell user={user} teams={teams} current={token}
-      side={<TeamSide token={token} members={members} me={me} inviteCode={team.invite_code} origin={origin} />}>
+    <AppShell user={user} teams={teams} current={token} memberCount={members.length}>
       <div className="narrow">
         <Link className="back" href={`/t/${token}/task/${task.seq}`}>← 업무로 돌아가기</Link>
         <header className="stack-sm">

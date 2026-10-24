@@ -69,7 +69,7 @@ export default async function Board({ params, searchParams }: PageProps<"/t/[tok
   const sorted = [...rows].sort((a, b) => Number(a.status === "done") - Number(b.status === "done"));
 
   return (
-    <AppShell user={user} teams={teams} current={token}
+    <AppShell user={user} teams={teams} current={token} memberCount={members.length}
       side={
         <>
           <section className="panel team-progress" aria-label="팀 진행">
@@ -86,17 +86,19 @@ export default async function Board({ params, searchParams }: PageProps<"/t/[tok
               ))}
             </ul>
           </section>
-          {upcoming.length > 0 && (
-            <section className="panel" aria-label="다가오는 마감">
-              <h2>다가오는 마감</h2>
+          <section className="panel" aria-label="다가오는 마감">
+            <h2>다가오는 마감</h2>
+            {upcoming.length === 0 && <p className="muted small">남은 마감이 없어요.</p>}
+            {upcoming.length > 0 && (
               <ul className="upcoming">
                 {upcoming.map((t) => (
                   <li key={t.id}><b className={`num${dday(t.due).startsWith("D-") && Number(dday(t.due).slice(2)) <= 2 ? " warn" : ""}`}>{dday(t.due)}</b>
                     <Link href={`/t/${token}/task/${t.seq}`} className="clip">{t.title}</Link></li>
                 ))}
               </ul>
-            </section>
-          )}
+            )}
+            <NotifyToggle token={token} />
+          </section>
           <TeamSide token={token} members={members} me={me} inviteCode={team.invite_code} origin={origin} />
         </>
       }>
@@ -157,7 +159,7 @@ export default async function Board({ params, searchParams }: PageProps<"/t/[tok
                 <p className="small">{byAll ? "팀원 모두가 기준을 확인해서 완료로 넘어갔어요." : "12시간 동안 미충족 의견이 없어 완료됐어요."}</p>
                 <p className="news-foot">
                   <span className="check-badge" aria-hidden="true"><CheckIcon size={13} color="#24400a" /></span>
-                  <span className="small num">{s.kind === "confirmed" ? dateTime(new Date(s.at).toISOString()) : ""}</span>
+                  <span className="small num">{byAll ? `${t.latest!.checkers.length}/${t.latest!.checkers.length}명 확인 · ` : ""}{s.kind === "confirmed" ? dateTime(new Date(s.at).toISOString()) : ""}</span>
                   <Link href={`/t/${token}/task/${t.seq}`}>보기</Link>
                 </p>
               </article>
@@ -165,8 +167,6 @@ export default async function Board({ params, searchParams }: PageProps<"/t/[tok
           })}
         </section>
       )}
-
-      <NotifyToggle token={token} />
 
       <section className="stack" aria-label="전체 업무">
         <div className="title-row" style={{ alignItems: "center" }}>

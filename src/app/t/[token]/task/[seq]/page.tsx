@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { tasksOf, teamsOfUser } from "@/lib/data";
 import { openTeam, canEditTask } from "@/lib/team-access";
@@ -7,7 +6,6 @@ import { dday, dueLabel, dateTime } from "@/lib/format";
 import { fileLinksForUser } from "@/server/services/submission-service";
 import { AppShell } from "@/app/app-shell";
 import { NotMember } from "../../not-member";
-import { TeamSide } from "../../team-side";
 import { submissionPill } from "../../criteria-labels";
 import { CheckIcon, CrossIcon } from "../../progress";
 import { checkSubmission } from "../../actions";
@@ -22,8 +20,6 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
   const task = tasks.find((t) => t.seq === Number(seq));
   if (!task) notFound();
   const nick = new Map(members.map((m) => [m.id, m.nickname]));
-  const h = await headers();
-  const origin = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
   const files = await fileLinksForUser(user.id, token, task.submissions.flatMap((s) => (s.file_path ? [s.file_path] : [])));
 
   const isOwner = me.id === task.owner_id;
@@ -54,8 +50,7 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
   const nextMine = tasks.find((t) => t.owner_id === me.id && t.id !== task.id && t.status !== "done");
 
   return (
-    <AppShell user={user} teams={teams} current={token}
-      side={<TeamSide token={token} members={members} me={me} inviteCode={team.invite_code} origin={origin} />}>
+    <AppShell user={user} teams={teams} current={token} memberCount={members.length}>
       <Link className="back" href={`/t/${token}`}>← 팀 보드</Link>
 
       <header className="task-head">

@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { openTeam } from "@/lib/team-access";
 import { teamsOfUser } from "@/lib/data";
 import { today } from "@/lib/format";
 import { AppShell } from "@/app/app-shell";
 import { NotMember } from "../not-member";
-import { TeamSide } from "../team-side";
 import { TaskForm } from "./new-task-form";
 import { createTask } from "../actions";
 
@@ -14,12 +12,9 @@ export default async function NewTask({ params }: PageProps<"/t/[token]/new">) {
   const { user, team, members, me } = await openTeam(token, `/t/${token}/new`);
   if (!me) return <NotMember nickname={user.nickname} />;
   const teams = await teamsOfUser(user.id);
-  const h = await headers();
-  const origin = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
 
   return (
-    <AppShell user={user} teams={teams} current={token}
-      side={<TeamSide token={token} members={members} me={me} inviteCode={team.invite_code} origin={origin} />}>
+    <AppShell user={user} teams={teams} current={token} memberCount={members.length}>
       <div className="narrow">
         <Link className="back" href={`/t/${token}`}>← 팀 보드로</Link>
         <header className="stack-sm">
