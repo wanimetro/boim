@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_KR, IBM_Plex_Mono, Nunito } from "next/font/google";
+import { IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const sans = IBM_Plex_Sans_KR({ weight: ["400", "500", "700"], subsets: ["latin"], variable: "--font-sans", display: "swap" });
+// 본문·제목은 Pretendard 하나로 (한글 글자만 필요한 만큼 나눠 받는 CDN 버전). 숫자·코드만 IBM Plex Mono.
+const PRETENDARD = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css";
 const mono = IBM_Plex_Mono({ weight: ["500"], subsets: ["latin"], variable: "--font-mono", display: "swap" });
-const display = Nunito({ weight: ["800"], subsets: ["latin"], variable: "--font-display", display: "swap" });
 
 export const metadata: Metadata = {
   title: "보임 팀 보드",
@@ -14,12 +14,16 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   width: "device-width", initialScale: 1, viewportFit: "cover",
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#131c31" }],
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#ffffff" }, { media: "(prefers-color-scheme: dark)", color: "#131e19" }],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ko" className={`${sans.variable} ${mono.variable} ${display.variable}`}>
+    <html lang="ko" className={mono.variable}>
+      <head>
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        <link rel="stylesheet" href={PRETENDARD} crossOrigin="anonymous" />
+      </head>
       <body>{children}</body>
     </html>
   );

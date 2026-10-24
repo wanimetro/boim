@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { User } from "@/lib/auth";
 import { signOut } from "./auth-actions";
+import { BrandMark } from "./brand-logo";
 
 type TeamLink = { token: string; name: string; is_leader: boolean };
 
@@ -11,8 +12,7 @@ export function TopBar({ user }: { user: User }) {
     <header className="topbar">
       <div className="topbar-in">
         <Link href="/" className="brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/boim-mark.png" alt="" width={38} height={22} />
+          <BrandMark size={26} />
           보임
         </Link>
         <span className="who">{user.nickname} 님</span>
