@@ -41,6 +41,13 @@ export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
     const version = Number(t.criteria_version ?? 1);
     // 지금 기준을 정한 시각 (등록하거나 기준을 고친 시각). 그보다 앞서 올린 결과물은 이 시각부터 다시 확인한다
     const criteriaAt = Date.parse(String(t.criteria_proposed_at));
+    // 완료 기준이 바뀐 기록만 골라 최근 것부터 (예전 한 줄 기준 rule 수정도 포함)
+    type Edit = { before: Record<string, unknown>; after: Record<string, unknown>; created_at: string };
+    const asList = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : typeof v === "string" ? [v] : []);
+    const criteria_edits = ((t.task_edits as Edit[] | null) ?? [])
+      .filter((e) => "criteria" in e.after || "rule" in e.after)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .map((e) => ({ at: e.created_at, before: asList(e.before.criteria ?? e.before.rule), after: asList(e.after.criteria ?? e.after.rule) }));
     const asc = [...((t.submissions as RawSubmission[] | null) ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
     const subs: Submission[] = asc.map((s, i) => {
       const checks = (s.submission_checks ?? []).filter((c) => c.version === version);
@@ -56,7 +63,7 @@ export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
       id: t.id, seq: t.seq, code: `${team.code}-${t.seq}`, title: t.title, owner_id: t.owner_id, created_by: t.created_by,
       owner: o?.nickname ?? "?", owner_code: o?.code ?? "?",
       due: t.due, due_time: String(t.due_time).slice(0, 5), rule: t.rule,
-      criteria, criteria_version: version,
+      criteria, criteria_version: version, criteria_edits,
       status: statusOf(latest), latest, submissions: subs,
     };
   });

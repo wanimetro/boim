@@ -149,6 +149,16 @@ input, select, textarea, button { font: inherit; color: inherit; }
 .panel.feedback { border-color: var(--none); }
 .panel.feedback h3 { font-size: .92rem; }
 
+/* 기준 수정 기록 */
+.criteria-history { font-size: .88rem; }
+.criteria-history summary { cursor: pointer; color: var(--muted); }
+.criteria-history > ol { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.criteria-history .diff { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.criteria-history .diff ol { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.criteria-history .gone { color: var(--none); text-decoration: line-through; }
+.criteria-history .new { color: var(--done); font-weight: 700; }
+@media (max-width: 520px) { .criteria-history .diff { grid-template-columns: 1fr; } }
+
 /* 올리기 전 스스로 확인 */
 .self-check { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .self-check legend { font-size: .88rem; color: var(--muted); padding: 0; margin-bottom: 2px; display: flex; gap: 6px; }

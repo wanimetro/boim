@@ -20,6 +20,8 @@ export type Task = {
   owner: string; owner_code: string; due: string; due_time: string; rule: string;
   /** 팀이 업무를 나눌 때 정한 완료 기준 항목 */
   criteria: string[]; criteria_version: number;
+  /** 완료 기준이 바뀐 기록 (최근 것부터). 팀원 모두에게 "기준 수정됨"과 전/후로 보인다 */
+  criteria_edits: { at: string; before: string[]; after: string[] }[];
   status: Status; latest: Submission | null; submissions: Submission[];
 };
 export type TaskInput = { title: string; owner_id: string; due: string; due_time: string; criteria: string[] };

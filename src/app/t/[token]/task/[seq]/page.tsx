@@ -94,8 +94,24 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
       <div className="split">
         <div className="split-a">
           <section className="panel">
-            <h2>완료 기준</h2>
+            <div className="panel-head"><h2>완료 기준</h2>{task.criteria_edits.length > 0 && <span className="pill s-wait">기준 수정됨</span>}</div>
             <CriteriaList criteria={task.criteria} />
+            {task.criteria_edits.length > 0 && (
+              <details className="criteria-history">
+                <summary>팀장이 기준을 <b className="num">{task.criteria_edits.length}</b>번 고쳤습니다 · 마지막 <span className="num">{dateTime(task.criteria_edits[0].at)}</span> · 바뀐 내용 보기</summary>
+                <ol>
+                  {task.criteria_edits.map((e, i) => (
+                    <li key={i}>
+                      <span className="num muted small">{dateTime(e.at)}</span>
+                      <div className="diff">
+                        <div><span className="eyebrow">바뀌기 전</span><ol>{e.before.map((c, j) => <li key={j} className={e.after.includes(c) ? undefined : "gone"}>{c}</li>)}</ol></div>
+                        <div><span className="eyebrow">바뀐 뒤</span><ol>{e.after.map((c, j) => <li key={j} className={e.before.includes(c) ? undefined : "new"}>{c}</li>)}</ol></div>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
             <p className="muted small">업무를 나눌 때 팀이 정한 기준입니다. 올린 결과물은 이 기준으로 팀원이 항목마다 확인하고, 결과물이 올라온 뒤에는 기준을 바꿀 수 없습니다.</p>
           </section>
 

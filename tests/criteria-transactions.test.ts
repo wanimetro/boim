@@ -81,6 +81,11 @@ describe("submission checks and criteria rules", () => {
     await editTask(creator, ["자료 여섯 장", "출처 표기"]);
     expect((await db.query<{ criteria_version: number }>("select criteria_version from public.tasks")).rows[0].criteria_version).toBe(2);
   });
+  it("lets only the leader change the criteria", async () => {
+    await db.exec(`delete from public.submissions; update public.members set is_leader=false where id='${creator}';`);
+    await rejects(() => editTask(creator, ["자료 세 장", "출처 표기"]), "criteria leader only");
+    await editTask(creator, ["자료 다섯 장", "출처 표기"], { title: "이름은 등록한 사람도 고침" });
+  });
   it("does not let the owner edit a task they did not create", async () => {
     await db.exec(`update public.tasks set owner_id='${mate}', created_by=null; update public.members set is_leader=false; delete from public.submissions;`);
     await rejects(() => db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, mate,

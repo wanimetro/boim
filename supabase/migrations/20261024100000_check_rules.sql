@@ -2,7 +2,7 @@ begin;
 -- 결과물 확인 규칙.
 --  자기 결과물에는 의견을 내지 않는다: 올린 사람·담당자는 확인 대상이 아니다.
 --  결과물이 한 번이라도 올라오면 완료 기준은 누구도 바꿀 수 없다(피드백을 받고 기준을 낮춰 피하는 일을 막는다).
---  업무 수정은 팀장·등록한 사람만 한다.
+--  업무 수정은 팀장·등록한 사람만 하고, 완료 기준은 팀장만 고친다(결과물이 올라오기 전까지).
 -- 앱에서 기준을 따로 합의하던 시험 단계의 테이블·함수가 있으면 지운다(운영 DB에는 없다).
 drop function if exists public.save_criteria_votes(uuid,uuid,integer,jsonb);
 drop table if exists public.criteria_votes;
@@ -38,6 +38,7 @@ begin
   items=public.boim_criteria(p_input->'criteria');
   if t.criteria is distinct from items and exists(select 1 from public.submissions where task_id=p_task_id) then
     raise exception 'criteria locked' using errcode='42501'; end if;
+  if t.criteria is distinct from items and not m.is_leader then raise exception 'criteria leader only' using errcode='42501'; end if;
   old_values=jsonb_build_object('title',t.title,'owner_id',t.owner_id::text,'due',t.due::text,'due_time',to_char(t.due_time,'HH24:MI'),'criteria',to_jsonb(t.criteria));
   new_values=jsonb_build_object('title',p_input->>'title','owner_id',p_input->>'owner_id','due',p_input->>'due','due_time',p_input->>'due_time','criteria',to_jsonb(items));
   select jsonb_object_agg(o.key,o.value),jsonb_object_agg(o.key,new_values->o.key) into before_changes,after_changes from jsonb_each(old_values) o where o.value is distinct from new_values->o.key;

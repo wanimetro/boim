@@ -38,10 +38,12 @@ export default async function EditTask({ params }: PageProps<"/t/[token]/task/[s
               members={members.map((m) => ({ id: m.id, name: m.nickname }))}
               minDate={today()}
               defaults={{ title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time, criteria: task.criteria }}
-              criteriaLocked={task.submissions.length > 0}
+              criteriaLocked={task.submissions.length > 0 || !me.is_leader}
               criteriaNote={task.submissions.length > 0
                 ? "결과물이 이미 올라와서 완료 기준은 바꿀 수 없습니다. 업무 이름·담당·마감만 고칠 수 있어요."
-                : "완료 기준은 팀이 함께 정한 약속이에요. 결과물이 올라오면 더는 바꿀 수 없으니, 오타나 빠진 항목은 지금 고쳐 주세요."}
+                : !me.is_leader
+                  ? "완료 기준은 팀장만 고칠 수 있어요. 오타나 빠진 항목이 있으면 팀장에게 알려 주세요."
+                  : "완료 기준은 팀이 함께 정한 약속이에요. 결과물이 올라오면 더는 바꿀 수 없고, 고치면 팀원에게 “기준 수정됨”과 바뀐 내용이 보입니다."}
               submitLabel="고친 내용 저장"
             />
           </>

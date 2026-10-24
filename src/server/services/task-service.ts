@@ -60,6 +60,8 @@ export async function updateTaskForUser(userId: string | null, token: string, se
   if (!changed.length) return { ok: true, changed: false };
   // 결과물이 올라온 뒤에는 완료 기준을 바꾸지 않는다 (피드백을 받고 기준을 낮춰 피하는 일을 막는다)
   if (changed.includes("criteria") && (task.submissions?.[0]?.count ?? 0) > 0) return { error: "결과물이 이미 올라와서 완료 기준은 바꿀 수 없습니다." };
+  // 완료 기준은 팀이 함께 정한 약속이라 팀장만 고친다 (자기 업무를 등록한 담당자가 기준을 낮추는 일을 막는다)
+  if (changed.includes("criteria") && !me.is_leader) return { error: "완료 기준은 팀장만 고칠 수 있습니다." };
   try {
     const saved = await taskRepository.updateWithEdit(task.id, me.id, input);
     return { ok: true, changed: saved };

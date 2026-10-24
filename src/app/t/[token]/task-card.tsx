@@ -12,6 +12,7 @@ export function TaskCard({ token, task, mine }: { token: string; task: Task; min
       <span className="meta">
         <span>담당 <b>{task.owner}</b></span>
         <span className="num">{dueLabel(task.due, task.due_time)} · {dday(task.due)}</span>
+        {task.criteria_edits.length > 0 && <span className="pill s-wait">기준 수정됨</span>}
         {redo && <span className="warn">다시 올려 주세요</span>}
       </span>
     </Link>

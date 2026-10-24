@@ -54,6 +54,11 @@ describe("task authorization and rules", () => {
     await expect(updateTaskForUser("user", token, 1, { ...input, title: "새 이름" })).resolves.toEqual({ ok: true, changed: true });
     expect(repo.updateWithEdit).toHaveBeenCalledTimes(1);
   });
+  it("lets only the leader change the criteria", async () => {
+    await expect(updateTaskForUser("user", token, 1, { ...input, criteria: ["새 기준"] })).resolves.toEqual({ error: "완료 기준은 팀장만 고칠 수 있습니다." });
+    repo.listMembers.mockResolvedValue([{ id: "member", user_id: "user", is_leader: true }]);
+    await expect(updateTaskForUser("user", token, 1, { ...input, criteria: ["새 기준"] })).resolves.toEqual({ ok: true, changed: true });
+  });
   it("allows a leader to edit a task created by another member", async () => {
     repo.listMembers.mockResolvedValue([{ id: "member", user_id: "user", is_leader: true }]);
     repo.findTask.mockResolvedValue({ ...input, id: "task", created_by: "someone-else" });
@@ -82,6 +87,7 @@ describe("task authorization and rules", () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
   it("treats a reordered criteria list as a change", async () => {
+    repo.listMembers.mockResolvedValue([{ id: "member", user_id: "user", is_leader: true }]);
     await expect(updateTaskForUser("user", token, 1, { ...input, criteria: [...input.criteria].reverse() })).resolves.toEqual({ ok: true, changed: true });
   });
   it("does not report success if atomic persistence fails", async () => {
