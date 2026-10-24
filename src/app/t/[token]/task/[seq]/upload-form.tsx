@@ -4,8 +4,8 @@ import { useRef, useState, useTransition } from "react";
 import { uploadSignedFile } from "@/client/storage-upload";
 import { prepareUpload, submitWork } from "../../actions";
 
-export function UploadForm({ token, seq, criteria, isOwner, ownerName, meName }: {
-  token: string; seq: number; criteria: string[]; isOwner: boolean; ownerName: string; meName: string;
+export function UploadForm({ token, seq, criteria, flagged = [], isOwner, ownerName, meName }: {
+  token: string; seq: number; criteria: string[]; flagged?: number[]; isOwner: boolean; ownerName: string; meName: string;
 }) {
   const [mode, setMode] = useState<"file" | "link">("file");
   const [file, setFile] = useState<File | null>(null);
@@ -48,8 +48,8 @@ export function UploadForm({ token, seq, criteria, isOwner, ownerName, meName }:
 
   if (done) {
     return (
-      <section className="panel">
-        <h2>올렸습니다</h2>
+      <section className="upload-form">
+        <h3>올렸습니다</h3>
         <p className="muted">다른 팀원이 기준 항목마다 확인합니다. 전원이 충족으로 확인하거나 12시간 동안 미충족 의견이 없으면 “완료”로 바뀝니다.</p>
         <button className="btn ghost" type="button" onClick={() => setDone(false)}>다른 파일 더 올리기</button>
       </section>
@@ -57,8 +57,7 @@ export function UploadForm({ token, seq, criteria, isOwner, ownerName, meName }:
   }
 
   return (
-    <form className="panel" onSubmit={submit}>
-      <h2>결과물 올리기</h2>
+    <form className="upload-form" onSubmit={submit}>
       {!isOwner && (
         <p className="callout warn-box small">
           이 업무의 담당은 <b>{ownerName}</b> 님입니다. <b>{meName}</b> 님이 대신 올리는 것으로 기록됩니다.
@@ -89,10 +88,11 @@ export function UploadForm({ token, seq, criteria, isOwner, ownerName, meName }:
         <ul>
           {criteria.map((text, i) => (
             <li key={i}>
-              <label className={checked[i] ? "on" : undefined}>
+              <label className={[checked[i] ? "on" : "", flagged.includes(i) ? "flagged" : ""].join(" ").trim() || undefined}>
                 <input type="checkbox" checked={checked[i]} onChange={() => toggle(i)} />
                 <span className="box" aria-hidden="true" />
-                <span><span className="num criteria-no">{i + 1}</span>{text}</span>
+                <span className="self-check-text"><span className="num criteria-no">{i + 1}</span>{text}</span>
+                {flagged.includes(i) && <span className="flag-note">피드백 받음</span>}
               </label>
             </li>
           ))}
@@ -105,7 +105,7 @@ export function UploadForm({ token, seq, criteria, isOwner, ownerName, meName }:
       </label>
 
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn" type="submit" disabled={pending}>{pending ? "올리는 중…" : "올리기"}</button>
+      <button className="btn lime" type="submit" disabled={pending}>{pending ? "올리는 중…" : flagged.length ? "다시 올리기" : "올리기"}</button>
 
       <dialog ref={dialog} className="modal" aria-labelledby={`left-${seq}`} onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
         <div className="modal-body">
