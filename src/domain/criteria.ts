@@ -58,16 +58,27 @@ export type SubmissionState =
  * next: 이 결과물 다음에 올라온 결과물의 시각(있으면). 그 뒤의 시간은 이 결과물에 세지 않는다.
  */
 export function submissionState(input: {
-  sub: SubmissionLike; criteria: Round; items: number; version: number; members: string[]; checks: Answer[]; now: number; next: number | null;
+  sub: SubmissionLike; criteria: Round; items: number; version: number; checkers: string[]; checks: Answer[]; now: number; next: number | null;
 }): SubmissionState {
-  const { sub, criteria, items, version, members, checks, now, next } = input;
+  const { sub, criteria, items, version, checkers, checks, now, next } = input;
   if (sub.review !== "pending") return { kind: "legacy", pass: sub.review === "pass", note: sub.review_note };
   if (criteria.kind !== "confirmed") return next === null ? { kind: "waiting" } : { kind: "superseded" };
   const start = Math.max(Date.parse(sub.created_at), criteria.at);
   const until = next === null ? now : Math.min(now, next);
-  const round = roundState({ items, version, start, participants: members.filter((m) => m !== sub.uploader_id), answers: checks, now: until });
+  const round = roundState({ items, version, start, participants: checkers, answers: checks, now: until });
   if (next !== null && round.kind === "open") return { kind: "superseded" };
   return round;
+}
+
+/** 자기 업무에는 의견을 내지 않는다: 기준 합의에서 등록한 사람·담당자·이 업무에 결과물을 올린 사람을 뺀다 */
+export function criteriaVoters(memberIds: string[], task: { created_by: string | null; owner_id: string }, uploaderIds: (string | null)[]): string[] {
+  const out = new Set<string | null>([task.created_by, task.owner_id, ...uploaderIds]);
+  return memberIds.filter((id) => !out.has(id));
+}
+
+/** 결과물 확인에서 올린 사람과 담당자를 뺀다 */
+export function submissionCheckers(memberIds: string[], uploaderId: string | null, ownerId: string): string[] {
+  return memberIds.filter((id) => id !== uploaderId && id !== ownerId);
 }
 
 export function isPassed(s: SubmissionState): boolean {

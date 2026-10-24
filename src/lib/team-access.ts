@@ -20,6 +20,11 @@ export function canEditTask(me: { id: string; is_leader: boolean }, task: { crea
   return (me.is_leader || task.created_by === me.id) && deadlineMs(task.due, task.due_time) > Date.now();
 }
 
+/** 완료 기준만 고칠 수 있는가: 위 조건이거나, 이 업무의 담당자이고 마감 전 (받은 기준 의견을 반영하려고) */
+export function canEditCriteria(me: { id: string; is_leader: boolean }, task: { created_by: string | null; owner_id: string; due: string; due_time: string }) {
+  return (me.is_leader || task.created_by === me.id || task.owner_id === me.id) && deadlineMs(task.due, task.due_time) > Date.now();
+}
+
 /** 서버 액션용: 로그인한 팀원만 통과 */
 export async function memberOnly(token: string) {
   const user = await currentUser();

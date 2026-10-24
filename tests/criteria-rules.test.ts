@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONFIRM_WINDOW_MS as W, readAnswers, roundState, statusFromLatest, submissionState, type Answer, type Round } from "@/domain/criteria";
+import { CONFIRM_WINDOW_MS as W, criteriaVoters, readAnswers, submissionCheckers, roundState, statusFromLatest, submissionState, type Answer, type Round } from "@/domain/criteria";
 
 const T0 = Date.parse("2026-10-24T00:00:00Z");
 const at = (ms: number) => new Date(T0 + ms).toISOString();
@@ -46,7 +46,7 @@ describe("submission checks", () => {
   const sub = (ms: number, review: "pending" | "pass" | "fail" = "pending") =>
     ({ id: "s", uploader_id: "a", created_at: at(ms), review, review_note: review === "fail" ? "분량 부족" : null });
   const run = (over: Partial<Parameters<typeof submissionState>[0]>) =>
-    submissionState({ sub: sub(0), criteria: confirmed, items: 2, version: 1, members: ["a", "b", "c"], checks: [], now: T0, next: null, ...over });
+    submissionState({ sub: sub(0), criteria: confirmed, items: 2, version: 1, checkers: ["b", "c"], checks: [], now: T0, next: null, ...over });
 
   it("waits for confirmed criteria before starting the check", () => {
     expect(run({ criteria: { kind: "open", autoAt: T0 + W, answered: 0, required: 1 } })).toEqual({ kind: "waiting" });
@@ -75,5 +75,14 @@ describe("reading answers from a form", () => {
     expect(readAnswers(2, form({ v0: "ok" }))).toEqual({ error: "2번 항목에 답해 주세요." });
     expect(readAnswers(1, form({ v0: "no", r0: " " }))).toHaveProperty("error");
     expect(readAnswers(2, form({ v0: "ok", v1: "no", r1: " 링크 없음 " }))).toEqual({ answers: [{ item: 0, ok: true }, { item: 1, ok: false, reason: "링크 없음" }] });
+  });
+});
+
+describe("who may answer", () => {
+  it("keeps the creator, the owner, and anyone who uploaded out of the criteria vote", () => {
+    expect(criteriaVoters(["a", "b", "c", "d"], { created_by: "a", owner_id: "b" }, ["c", null])).toEqual(["d"]);
+  });
+  it("keeps the uploader and the owner out of the work check", () => {
+    expect(submissionCheckers(["a", "b", "c"], "c", "a")).toEqual(["b"]);
   });
 });

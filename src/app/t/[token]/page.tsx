@@ -36,8 +36,11 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
   const mine = tasks.filter((t) => t.owner_id === me.id && t.status !== "done");
   // 내가 답할 차례: 기준 합의(등록한 사람 제외) 또는 남이 올린 결과물 확인
   const toAnswer = tasks.filter((t) =>
-    (t.agreement.kind === "open" && t.created_by !== me.id && !t.votes.some((v) => v.member_id === me.id)) ||
-    (t.latest && t.latest.state.kind === "open" && t.latest.uploader_id !== me.id && !t.latest.checks.some((c) => c.member_id === me.id)));
+    (t.agreement.kind === "open" && t.voters.includes(me.id) && !t.votes.some((v) => v.member_id === me.id)) ||
+    (t.latest && t.latest.state.kind === "open" && t.latest.checkers.includes(me.id) && !t.latest.checks.some((c) => c.member_id === me.id)));
+  // 받은 피드백: 내가 맡거나 등록한 업무에 수정·미충족 의견이 있을 때
+  const feedback = tasks.filter((t) => (t.owner_id === me.id || t.created_by === me.id) &&
+    (t.agreement.kind === "objected" || t.latest?.state.kind === "objected"));
   // PC 칸 안에서는 내 업무가 먼저, 그다음 마감순 (tasks는 이미 마감순)
   const inColumn = (s: Status): Task[] =>
     tasks.filter((t) => t.status === s).sort((a, b) => Number(b.owner_id === me.id) - Number(a.owner_id === me.id));
@@ -59,6 +62,18 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
         <p className="callout">
           <b>{me.nickname}</b> 님이 올릴 업무가 <b className="num">{mine.length}</b>개 있습니다.
         </p>
+      )}
+
+      {feedback.length > 0 && (
+        <div className="callout warn-box stack-sm" role="status">
+          <p><b>받은 피드백</b>이 있는 업무가 <b className="num">{feedback.length}</b>개 있습니다. 고친 뒤 다시 올리거나 기준을 고쳐 주세요.</p>
+          <ul className="answer-links">
+            {feedback.map((t) => (
+              <li key={t.id}><Link href={`/t/${token}/task/${t.seq}`}>{t.title}</Link>
+                <span className="muted small"> · {t.latest?.state.kind === "objected" ? "결과물 미충족 의견" : "기준 수정 의견"}</span></li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {toAnswer.length > 0 && (

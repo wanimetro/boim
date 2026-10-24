@@ -12,15 +12,19 @@ export type Submission = {
   state: SubmissionState;
   /** 현재 기준 차수의 항목별 확인. 화면에는 이름 없이 항목·이유만 보인다 */
   checks: Answer[];
+  /** 이 결과물을 확인할 팀원 (올린 사람·담당자 제외) */
+  checkers: string[];
 };
 export type Task = {
   id: string; seq: number; code: string; title: string; owner_id: string; created_by: string | null;
   owner: string; owner_code: string; due: string; due_time: string; rule: string;
   criteria: string[]; criteria_version: number;
-  /** 기준 합의 상태. 등록한 사람을 뺀 팀원이 대상 */
+  /** 기준 합의 상태. voters가 대상 */
   agreement: Round;
   /** 현재 기준 차수의 항목별 합의 응답 */
   votes: Answer[];
+  /** 기준에 의견을 낼 수 있는 팀원 (등록한 사람·담당자·올린 사람 제외) */
+  voters: string[];
   status: Status; latest: Submission | null; submissions: Submission[];
 };
 export type TaskInput = { title: string; owner_id: string; due: string; due_time: string; criteria: string[] };

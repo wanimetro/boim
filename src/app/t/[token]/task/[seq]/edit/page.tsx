@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { tasksOf, teamsOfUser } from "@/lib/data";
-import { openTeam, canEditTask } from "@/lib/team-access";
+import { openTeam, canEditTask, canEditCriteria } from "@/lib/team-access";
 import { today } from "@/lib/format";
 import { AppShell } from "@/app/app-shell";
 import { NotMember } from "../../../not-member";
@@ -19,7 +19,8 @@ export default async function EditTask({ params }: PageProps<"/t/[token]/task/[s
   if (!task) notFound();
   const h = await headers();
   const origin = process.env.APP_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const editable = canEditTask(me, task);
+  const full = canEditTask(me, task);
+  const editable = full || canEditCriteria(me, task);
 
   return (
     <AppShell user={user} teams={teams} current={token}
@@ -28,16 +29,20 @@ export default async function EditTask({ params }: PageProps<"/t/[token]/task/[s
         <Link className="back" href={`/t/${token}/task/${task.seq}`}>← 업무로 돌아가기</Link>
         <header className="stack-sm">
           <span className="eyebrow"><span className="num">{task.code}</span> · {team.name}</span>
-          <h1>업무 수정</h1>
+          <h1>{full ? "업무 수정" : "완료 기준 고치기"}</h1>
         </header>
         {editable ? (
           <>
-            <p className="muted">마감 전까지 팀장이나 이 업무를 등록한 사람이 고칠 수 있습니다. 고친 내용은 기록으로 남습니다.</p>
+            <p className="muted">{full
+              ? "마감 전까지 팀장이나 이 업무를 등록한 사람이 고칠 수 있습니다. 고친 내용은 기록으로 남습니다."
+              : "받은 의견을 반영해 완료 기준을 고쳐 주세요. 고치면 기준 합의를 처음부터 다시 하고, 고친 내용은 기록으로 남습니다."}</p>
             <TaskForm
               action={updateTask.bind(null, token, task.seq)}
               members={members.map((m) => ({ id: m.id, name: m.nickname }))}
               minDate={today()}
               defaults={{ title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time, criteria: task.criteria }}
+              criteriaOnly={!full}
+              feedback={task.agreement.kind === "objected" ? task.agreement.objections : undefined}
               criteriaNote={task.submissions.length > 0
                 ? "완료 기준을 바꾸면 기준 합의를 처음부터 다시 하고, 이미 올라온 결과물도 새 기준으로 다시 확인합니다."
                 : "완료 기준을 바꾸면 기준 합의를 처음부터 다시 합니다."}

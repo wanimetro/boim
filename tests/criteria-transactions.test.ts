@@ -61,8 +61,26 @@ describe("criteria agreement and submission checks", () => {
     await rejects(() => vote(mate, 1, JSON.stringify([{ item: 0, ok: true }, { item: 0, ok: true }])), "invalid answers");
   });
   it("does not let the creator vote on their own criteria or an outsider vote at all", async () => {
-    await rejects(() => vote(creator, 1, okAll), "creator cannot vote");
+    await rejects(() => vote(creator, 1, okAll), "own task cannot vote");
     await rejects(() => vote(outsider, 1, okAll), "membership required");
+  });
+  it("does not let the owner or anyone who uploaded for the task vote on its criteria", async () => {
+    await db.exec(`update public.tasks set created_by=null, owner_id='${mate}';`);
+    await rejects(() => vote(mate, 1, okAll), "own task cannot vote");
+    await db.exec(`update public.tasks set owner_id='${creator}'; insert into public.submissions(task_id,uploader_id,link_url) values('${task}','${mate}','https://example.com/m');`);
+    await rejects(() => vote(mate, 1, okAll), "own task cannot vote");
+  });
+  it("does not let the owner check work someone else uploaded for them", async () => {
+    await db.exec(`update public.tasks set owner_id='${mate}';`);
+    await rejects(() => check(mate, 1, okAll), "own work cannot check");
+  });
+  it("lets the owner change only the criteria", async () => {
+    await db.exec(`update public.tasks set owner_id='${mate}'; update public.members set is_leader=false where id='${creator}';`);
+    const base = { title: "업무", owner_id: mate, due: "2099-11-01", due_time: "18:00", criteria: ["자료 여섯 장", "출처 표기"] };
+    const edit = (input: object) => db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, mate, JSON.stringify(input)]);
+    await edit(base);
+    expect((await db.query<{ criteria: string[] }>("select criteria from public.tasks")).rows[0].criteria).toEqual(base.criteria);
+    await rejects(() => edit({ ...base, due: "2099-12-01" }), "owner may edit criteria only");
   });
   it("rejects a stale vote after the criteria were edited", async () => {
     await db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, creator,
@@ -71,7 +89,7 @@ describe("criteria agreement and submission checks", () => {
     await vote(mate, 2, okAll);
   });
   it("only lets someone other than the uploader check the latest submission", async () => {
-    await rejects(() => check(creator, 1, okAll), "uploader cannot check");
+    await rejects(() => check(creator, 1, okAll), "own work cannot check");
     await check(mate, 1, JSON.stringify([{ item: 0, ok: true }, { item: 1, ok: false, reason: "출처 링크가 없음" }]));
     const rows = await db.query<{ item: number; reason: string | null }>("select item,reason from public.submission_checks order by item");
     expect(rows.rows).toEqual([{ item: 0, reason: null }, { item: 1, reason: "출처 링크가 없음" }]);
