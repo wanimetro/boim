@@ -94,17 +94,16 @@ export default async function Admin() {
       <section className="panel">
         <h2>팀원 확인 흐름</h2>
         <p className="muted small">
-          운영자 검수 대신 팀원이 항목마다 확인합니다. 기준은 등록한 사람을 뺀 팀원이, 결과물은 올린 사람을 뺀 팀원이 봅니다.
-          전원 동의하거나 12시간 동안 반대 의견이 없으면 확정됩니다. 누가 반대했는지는 팀 화면에도 운영 화면에도 보이지 않습니다.
+          운영자 검수 대신, 올린 사람과 담당자를 뺀 팀원이 완료 기준을 항목마다 확인합니다.
+          전원 충족이거나 12시간 동안 미충족 의견이 없으면 완료됩니다. 누가 반대했는지는 팀 화면에도 운영 화면에도 보이지 않습니다.
         </p>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>팀</th><th>기준 합의 중</th><th>기준 의견 있음</th><th>결과물 확인 중</th><th>미충족 의견</th><th>전원 확인 완료</th><th>12시간 경과 완료</th></tr></thead>
+            <thead><tr><th>팀</th><th>결과물 확인 중</th><th>미충족 의견</th><th>전원 확인 완료</th><th>12시간 경과 완료</th></tr></thead>
             <tbody>
               {flow.map((f) => (
                 <tr key={f.r.team.id}>
                   <td>{f.r.team.code}</td>
-                  <td className="num">{f.agreeing}</td><td className="num">{f.agreeBlocked}</td>
                   <td className="num">{f.checking}</td><td className="num">{f.rejected}</td>
                   <td className="num">{f.byAll}</td><td className="num">{f.byTimeout}</td>
                 </tr>

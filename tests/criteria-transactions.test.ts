@@ -34,67 +34,57 @@ beforeEach(async () => {
 afterEach(async () => { await db.exec("rollback;"); });
 afterAll(async () => { await db.close(); });
 
-const vote = (member: string, version: number, votes: string) =>
-  db.query("select public.save_criteria_votes($1,$2,$3,$4::jsonb)", [task, member, version, votes]);
 const check = (member: string, version: number, checks: string, id = sub) =>
   db.query("select public.save_submission_checks($1,$2,$3,$4::jsonb)", [id, member, version, checks]);
+const editTask = (member: string, criteria: string[], extra: object = {}) =>
+  db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, member,
+    JSON.stringify({ title: "업무", owner_id: creator, due: "2099-11-01", due_time: "18:00", criteria, ...extra })]);
 async function rejects(run: () => Promise<unknown>, message: string) {
   await db.exec("savepoint attempt;");
   await expect(run()).rejects.toThrow(message);
   await db.exec("rollback to attempt;");
 }
 
-describe("criteria agreement and submission checks", () => {
-  it("migrates an existing one-line rule into a single criterion", async () => {
+describe("submission checks and criteria rules", () => {
+  it("migrates an existing one-line rule into criteria items", async () => {
     const t = await db.query<{ criteria: string[] }>("select criteria from public.tasks where id=$1", [task]);
     expect(t.rows[0].criteria).toHaveLength(2);
   });
-  it("replaces a member's whole answer instead of piling up rows", async () => {
-    await vote(mate, 1, JSON.stringify([{ item: 0, ok: false, reason: "분량이 애매함" }, { item: 1, ok: true }]));
-    await vote(mate, 1, okAll);
-    const rows = await db.query<{ ok: boolean }>("select ok from public.criteria_votes where member_id=$1", [mate]);
-    expect(rows.rows.map(r => r.ok)).toEqual([true, true]);
+  it("has no in-app criteria agreement table", async () => {
+    const r = await db.query("select 1 from information_schema.tables where table_name='criteria_votes'");
+    expect(r.rows).toEqual([]);
   });
-  it("requires a reason for every objection and an answer for every item", async () => {
-    await rejects(() => vote(mate, 1, JSON.stringify([{ item: 0, ok: false }, { item: 1, ok: true }])), "invalid answers");
-    await rejects(() => vote(mate, 1, JSON.stringify([{ item: 0, ok: true }])), "invalid answers");
-    await rejects(() => vote(mate, 1, JSON.stringify([{ item: 0, ok: true }, { item: 0, ok: true }])), "invalid answers");
+  it("replaces a member's whole check instead of piling up rows, and requires reasons for unmet items", async () => {
+    await check(mate, 1, JSON.stringify([{ item: 0, ok: false, reason: "분량이 부족함" }, { item: 1, ok: true }]));
+    await check(mate, 1, okAll);
+    expect((await db.query<{ ok: boolean }>("select ok from public.submission_checks where member_id=$1", [mate])).rows.map(r => r.ok)).toEqual([true, true]);
+    await rejects(() => check(mate, 1, JSON.stringify([{ item: 0, ok: false }, { item: 1, ok: true }])), "invalid answers");
+    await rejects(() => check(mate, 1, JSON.stringify([{ item: 0, ok: true }])), "invalid answers");
+    await rejects(() => check(mate, 1, JSON.stringify([{ item: 0, ok: true }, { item: 0, ok: true }])), "invalid answers");
   });
-  it("does not let the creator vote on their own criteria or an outsider vote at all", async () => {
-    await rejects(() => vote(creator, 1, okAll), "own task cannot vote");
-    await rejects(() => vote(outsider, 1, okAll), "membership required");
-  });
-  it("does not let the owner or anyone who uploaded for the task vote on its criteria", async () => {
-    await db.exec(`update public.tasks set created_by=null, owner_id='${mate}';`);
-    await rejects(() => vote(mate, 1, okAll), "own task cannot vote");
-    await db.exec(`update public.tasks set owner_id='${creator}'; insert into public.submissions(task_id,uploader_id,link_url) values('${task}','${mate}','https://example.com/m');`);
-    await rejects(() => vote(mate, 1, okAll), "own task cannot vote");
-  });
-  it("does not let the owner check work someone else uploaded for them", async () => {
+  it("only lets someone other than the uploader or owner check, and only the latest submission", async () => {
+    await rejects(() => check(creator, 1, okAll), "own work cannot check");
+    await rejects(() => check(outsider, 1, okAll), "membership required");
     await db.exec(`update public.tasks set owner_id='${mate}';`);
     await rejects(() => check(mate, 1, okAll), "own work cannot check");
-  });
-  it("lets the owner change only the criteria", async () => {
-    await db.exec(`update public.tasks set owner_id='${mate}'; update public.members set is_leader=false where id='${creator}';`);
-    const base = { title: "업무", owner_id: mate, due: "2099-11-01", due_time: "18:00", criteria: ["자료 여섯 장", "출처 표기"] };
-    const edit = (input: object) => db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, mate, JSON.stringify(input)]);
-    await edit(base);
-    expect((await db.query<{ criteria: string[] }>("select criteria from public.tasks")).rows[0].criteria).toEqual(base.criteria);
-    await rejects(() => edit({ ...base, due: "2099-12-01" }), "owner may edit criteria only");
-  });
-  it("rejects a stale vote after the criteria were edited", async () => {
-    await db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, creator,
-      JSON.stringify({ title: "업무", owner_id: creator, due: "2099-11-01", due_time: "18:00", criteria: ["자료 여섯 장", "출처 표기"] })]);
-    await rejects(() => vote(mate, 1, okAll), "criteria changed");
-    await vote(mate, 2, okAll);
-  });
-  it("only lets someone other than the uploader check the latest submission", async () => {
-    await rejects(() => check(creator, 1, okAll), "own work cannot check");
-    await check(mate, 1, JSON.stringify([{ item: 0, ok: true }, { item: 1, ok: false, reason: "출처 링크가 없음" }]));
-    const rows = await db.query<{ item: number; reason: string | null }>("select item,reason from public.submission_checks order by item");
-    expect(rows.rows).toEqual([{ item: 0, reason: null }, { item: 1, reason: "출처 링크가 없음" }]);
-    await db.exec(`insert into public.submissions(task_id,uploader_id,link_url,created_at) values('${task}','${creator}','https://example.com/2',now()+interval '1 second');`);
+    await db.exec(`update public.tasks set owner_id='${creator}';
+      insert into public.submissions(task_id,uploader_id,link_url,created_at) values('${task}','${creator}','https://example.com/2',now()+interval '1 second');`);
     await rejects(() => check(mate, 1, okAll), "not latest");
+  });
+  it("locks the criteria once anything has been uploaded, even for the leader", async () => {
+    await rejects(() => editTask(creator, ["자료 세 장", "출처 표기"]), "criteria locked");
+    await editTask(creator, ["자료 다섯 장", "출처 표기"], { title: "이름만 바꿈" });
+    expect((await db.query<{ title: string }>("select title from public.tasks")).rows[0].title).toBe("이름만 바꿈");
+  });
+  it("allows fixing criteria before anything is uploaded, and bumps the version", async () => {
+    await db.exec(`delete from public.submissions;`);
+    await editTask(creator, ["자료 여섯 장", "출처 표기"]);
+    expect((await db.query<{ criteria_version: number }>("select criteria_version from public.tasks")).rows[0].criteria_version).toBe(2);
+  });
+  it("does not let the owner edit a task they did not create", async () => {
+    await db.exec(`update public.tasks set owner_id='${mate}', created_by=null; update public.members set is_leader=false; delete from public.submissions;`);
+    await rejects(() => db.query("select public.update_task_with_edit($1,$2,$3::jsonb)", [task, mate,
+      JSON.stringify({ title: "업무", owner_id: mate, due: "2099-11-01", due_time: "18:00", criteria: ["쉬운 기준", "출처 표기"] })]), "edit forbidden");
   });
   it("is callable by the service role only", async () => {
     const r = await db.query<{ anon: boolean; service: boolean }>("select has_function_privilege('anon','public.save_submission_checks(uuid,uuid,integer,jsonb)','execute') as anon, has_function_privilege('service_role','public.save_submission_checks(uuid,uuid,integer,jsonb)','execute') as service");

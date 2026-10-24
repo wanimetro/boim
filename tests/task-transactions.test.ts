@@ -52,8 +52,7 @@ describe("Postgres atomic team and task persistence",()=>{
   });
   it("does not let a nonleader edit a task with a null creator",async()=>{
     await db.exec(`update public.members set is_leader=false where id='${member}'; update public.tasks set created_by=null; savepoint attempt;`);
-    // 이 팀원은 담당자라 완료 기준만 고칠 수 있다. 업무 이름까지 바꾸려 하면 막힌다
-    await expect(update()).rejects.toThrow("owner may edit criteria only"); await db.exec("rollback to attempt;");
+    await expect(update()).rejects.toThrow("edit forbidden"); await db.exec("rollback to attempt;");
   });
   it("allocates task numbers in the atomic operation",async()=>{
     await db.query("select public.create_task_atomic($1,$2,$3::jsonb)",[team,member,JSON.stringify(input)]);

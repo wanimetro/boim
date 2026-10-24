@@ -49,8 +49,7 @@ export async function updateTaskForUser(userId: string | null, token: string, se
   const { team, members, me } = await requireMembership(userId, token);
   const task = await taskRepository.findTask(team.id, seq);
   if (!task) return { error: "업무를 찾을 수 없습니다." };
-  const fullEdit = me.is_leader || task.created_by === me.id;
-  if (!fullEdit && task.owner_id !== me.id) return { error: "팀장이나 이 업무를 등록한 사람만 고칠 수 있습니다." };
+  if (!(me.is_leader || task.created_by === me.id)) return { error: "팀장이나 이 업무를 등록한 사람만 고칠 수 있습니다." };
   const now = Date.now();
   if (deadlineMs(task.due, String(task.due_time)) <= now) return { error: "마감이 지난 업무는 고칠 수 없습니다." };
   const input = normalize(raw);
@@ -59,8 +58,8 @@ export async function updateTaskForUser(userId: string | null, token: string, se
   const before: TaskInput = { title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time.slice(0, 5), criteria: task.criteria };
   const changed = (Object.keys(input) as (keyof TaskInput)[]).filter(key => JSON.stringify(input[key]) !== JSON.stringify(before[key]));
   if (!changed.length) return { ok: true, changed: false };
-  // 담당자는 받은 기준 의견을 반영하도록 완료 기준만 고칠 수 있다
-  if (!fullEdit && changed.some(key => key !== "criteria")) return { error: "담당자는 완료 기준만 고칠 수 있습니다. 업무 이름·담당·마감은 팀장이나 등록한 사람에게 부탁해 주세요." };
+  // 결과물이 올라온 뒤에는 완료 기준을 바꾸지 않는다 (피드백을 받고 기준을 낮춰 피하는 일을 막는다)
+  if (changed.includes("criteria") && (task.submissions?.[0]?.count ?? 0) > 0) return { error: "결과물이 이미 올라와서 완료 기준은 바꿀 수 없습니다." };
   try {
     const saved = await taskRepository.updateWithEdit(task.id, me.id, input);
     return { ok: true, changed: saved };

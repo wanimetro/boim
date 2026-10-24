@@ -129,8 +129,7 @@ input, select, textarea, button { font: inherit; color: inherit; }
 .criteria-edit { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .criteria-edit legend { font-size: .88rem; color: var(--muted); padding: 0; margin-bottom: 2px; }
 .criteria-edit ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.criteria-edit li { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-.criteria-edit .feedback-note { flex-basis: 100%; margin-left: 30px; font-size: .82rem; color: var(--none); }
+.criteria-edit li { display: flex; align-items: center; gap: 4px; }
 .criteria-edit input { flex: 1; min-width: 0; background: var(--sunken); color: var(--ink); border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm); padding: 10px 12px; font-size: 1rem; min-height: var(--tap); }
 .criteria-edit .link-btn { align-self: center; padding: 0 6px; color: var(--muted); }

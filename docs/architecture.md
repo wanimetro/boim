@@ -19,7 +19,8 @@
 - `join_team_atomic`: 팀 행을 잠그고 초대 코드 재확인·중복 참여 확인·팀원 번호 할당을 실행한다.
 - `create_task_atomic`: 팀 행 잠금 아래 업무 번호를 할당하고 저장한다.
 - `update_task_with_edit`: 업무 행 잠금 아래 권한·현재 마감을 재확인하고 실제 변경 필드와 업무를 함께 저장한다. 이력 실패 시 업무 변경도 롤백된다.
-- `save_criteria_votes`, `save_submission_checks`: 업무 행 잠금 아래 팀 소속·대상자(등록한 사람/올린 사람 제외)·기준 차수·최신 결과물을 재확인하고 한 사람의 항목별 응답을 통째로 바꾼다. 확정 여부는 `src/domain/criteria.ts`가 응답과 시각으로 계산한다.
+- `save_submission_checks`: 업무 행 잠금 아래 팀 소속·대상자(올린 사람·담당자 제외)·기준 차수·최신 결과물을 재확인하고 한 사람의 항목별 확인을 통째로 바꾼다. 완료 여부는 `src/domain/criteria.ts`가 확인과 시각으로 계산한다.
+- `update_task_with_edit`는 결과물이 하나라도 있으면 완료 기준 변경을 거절한다.
 - 이 함수들은 SECURITY INVOKER이며 service_role에만 EXECUTE를 부여한다. RLS와 기존 테이블 권한은 유지한다.
 
 Auth 계정 생성과 프로필 저장, Storage 업로드와 제출 등록, 외부 푸시 발송은 서로 다른 시스템 작업이다. 이 코드 분리가 이들 시스템 간 분산 트랜잭션이나 알림의 exactly-once 전달을 보장하지는 않는다.

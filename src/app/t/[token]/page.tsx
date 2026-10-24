@@ -34,13 +34,11 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
   tasks.forEach((t) => count[t.status]++);
   const next = tasks.find((t) => t.status !== "done");
   const mine = tasks.filter((t) => t.owner_id === me.id && t.status !== "done");
-  // 내가 답할 차례: 기준 합의(등록한 사람 제외) 또는 남이 올린 결과물 확인
+  // 내가 확인할 차례: 남이 올린 결과물 (내가 맡은 업무는 제외)
   const toAnswer = tasks.filter((t) =>
-    (t.agreement.kind === "open" && t.voters.includes(me.id) && !t.votes.some((v) => v.member_id === me.id)) ||
-    (t.latest && t.latest.state.kind === "open" && t.latest.checkers.includes(me.id) && !t.latest.checks.some((c) => c.member_id === me.id)));
-  // 받은 피드백: 내가 맡거나 등록한 업무에 수정·미충족 의견이 있을 때
-  const feedback = tasks.filter((t) => (t.owner_id === me.id || t.created_by === me.id) &&
-    (t.agreement.kind === "objected" || t.latest?.state.kind === "objected"));
+    t.latest && t.latest.state.kind === "open" && t.latest.checkers.includes(me.id) && !t.latest.checks.some((c) => c.member_id === me.id));
+  // 받은 피드백: 내가 맡은 업무에 미충족 의견이 있을 때
+  const feedback = tasks.filter((t) => t.owner_id === me.id && t.latest?.state.kind === "objected");
   // PC 칸 안에서는 내 업무가 먼저, 그다음 마감순 (tasks는 이미 마감순)
   const inColumn = (s: Status): Task[] =>
     tasks.filter((t) => t.status === s).sort((a, b) => Number(b.owner_id === me.id) - Number(a.owner_id === me.id));
@@ -66,11 +64,11 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
 
       {feedback.length > 0 && (
         <div className="callout warn-box stack-sm" role="status">
-          <p><b>받은 피드백</b>이 있는 업무가 <b className="num">{feedback.length}</b>개 있습니다. 고친 뒤 다시 올리거나 기준을 고쳐 주세요.</p>
+          <p><b>받은 피드백</b>이 있는 업무가 <b className="num">{feedback.length}</b>개 있습니다. 표시된 항목을 고쳐서 다시 올려 주세요.</p>
           <ul className="answer-links">
             {feedback.map((t) => (
               <li key={t.id}><Link href={`/t/${token}/task/${t.seq}`}>{t.title}</Link>
-                <span className="muted small"> · {t.latest?.state.kind === "objected" ? "결과물 미충족 의견" : "기준 수정 의견"}</span></li>
+                <span className="muted small"> · 미충족 의견 {t.latest?.state.kind === "objected" ? t.latest.state.objections.length : 0}개 항목</span></li>
             ))}
           </ul>
         </div>
@@ -82,7 +80,7 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
           <ul className="answer-links">
             {toAnswer.map((t) => (
               <li key={t.id}><Link href={`/t/${token}/task/${t.seq}`}>{t.title}</Link>
-                <span className="muted small"> · {t.agreement.kind === "open" ? "기준 합의" : "결과물 확인"}</span></li>
+                <span className="muted small"> · 결과물 확인</span></li>
             ))}
           </ul>
         </div>

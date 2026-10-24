@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONFIRM_WINDOW_MS as W, criteriaVoters, readAnswers, submissionCheckers, roundState, statusFromLatest, submissionState, type Answer, type Round } from "@/domain/criteria";
+import { CONFIRM_WINDOW_MS as W, readAnswers, submissionCheckers, roundState, statusFromLatest, submissionState, type Answer } from "@/domain/criteria";
 
 const T0 = Date.parse("2026-10-24T00:00:00Z");
 const at = (ms: number) => new Date(T0 + ms).toISOString();
@@ -42,16 +42,12 @@ describe("round confirmation", () => {
 });
 
 describe("submission checks", () => {
-  const confirmed: Round = { kind: "confirmed", at: T0 + 1000, by: "all" };
   const sub = (ms: number, review: "pending" | "pass" | "fail" = "pending") =>
     ({ id: "s", uploader_id: "a", created_at: at(ms), review, review_note: review === "fail" ? "분량 부족" : null });
   const run = (over: Partial<Parameters<typeof submissionState>[0]>) =>
-    submissionState({ sub: sub(0), criteria: confirmed, items: 2, version: 1, checkers: ["b", "c"], checks: [], now: T0, next: null, ...over });
+    submissionState({ sub: sub(0), criteriaAt: T0 + 1000, items: 2, version: 1, checkers: ["b", "c"], checks: [], now: T0, next: null, ...over });
 
-  it("waits for confirmed criteria before starting the check", () => {
-    expect(run({ criteria: { kind: "open", autoAt: T0 + W, answered: 0, required: 1 } })).toEqual({ kind: "waiting" });
-  });
-  it("starts the 12-hour window when the criteria were confirmed, if that was after the upload", () => {
+  it("starts the 12-hour window when the criteria were last set, if that was after the upload", () => {
     expect(run({ now: T0 + 2000 })).toMatchObject({ kind: "open", autoAt: T0 + 1000 + W, required: 2 });
     expect(run({ now: T0 + 1000 + W })).toEqual({ kind: "confirmed", at: T0 + 1000 + W, by: "timeout" });
   });
@@ -61,7 +57,7 @@ describe("submission checks", () => {
   });
   it("marks a still-pending submission as replaced once a newer one arrives", () => {
     expect(run({ next: T0 + 5000, now: T0 + 2 * W })).toEqual({ kind: "superseded" });
-    expect(run({ sub: sub(-2 * W), criteria: { kind: "confirmed", at: T0 - 2 * W, by: "all" }, next: T0, now: T0 + W })).toMatchObject({ kind: "confirmed", by: "timeout" });
+    expect(run({ sub: sub(-2 * W), criteriaAt: T0 - 2 * W, next: T0, now: T0 + W })).toMatchObject({ kind: "confirmed", by: "timeout" });
   });
   it("keeps old operator reviews as they were", () => {
     expect(statusFromLatest(run({ sub: sub(0, "pass") }))).toBe("done");
@@ -79,9 +75,6 @@ describe("reading answers from a form", () => {
 });
 
 describe("who may answer", () => {
-  it("keeps the creator, the owner, and anyone who uploaded out of the criteria vote", () => {
-    expect(criteriaVoters(["a", "b", "c", "d"], { created_by: "a", owner_id: "b" }, ["c", null])).toEqual(["d"]);
-  });
   it("keeps the uploader and the owner out of the work check", () => {
     expect(submissionCheckers(["a", "b", "c"], "c", "a")).toEqual(["b"]);
   });

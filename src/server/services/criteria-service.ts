@@ -15,25 +15,12 @@ async function load(userId: string | null, token: string, seq: number) {
   return { me, task };
 }
 
-/** 기준 합의: 등록한 사람을 뺀 팀원이, 기준이 확정되기 전에만 */
-export async function voteCriteriaForUser(userId: string | null, token: string, seq: number, version: number, get: (key: string) => string): Promise<AnswerResult> {
-  const { me, task } = await load(userId, token, seq);
-  if (!task.voters.includes(me.id)) return { error: "내가 맡거나 등록했거나 결과물을 올린 업무에는 기준 의견을 낼 수 없습니다." };
-  if (task.criteria_version !== version) return { error: STALE };
-  if (task.agreement.kind === "confirmed") return { error: "기준이 이미 확정됐습니다." };
-  const read = readAnswers(task.criteria.length, get);
-  if ("error" in read) return read;
-  try { await repo.saveVotes(task.id, me.id, version, read.answers); return { ok: true }; }
-  catch (e) { return { error: (e as { code?: string }).code === "40001" ? STALE : SAVE_FAILED }; }
-}
-
-/** 결과물 확인: 올린 사람을 뺀 팀원이, 가장 최근 결과물에, 기준 확정 뒤 확인이 끝나기 전에만 */
+/** 결과물 확인: 올린 사람·담당자를 뺀 팀원이, 가장 최근 결과물에, 확인이 끝나기 전에만 */
 export async function checkSubmissionForUser(userId: string | null, token: string, seq: number, submissionId: string, version: number, get: (key: string) => string): Promise<AnswerResult> {
   const { me, task } = await load(userId, token, seq);
   const sub = task.latest;
   if (!sub || sub.id !== submissionId || task.criteria_version !== version) return { error: STALE };
   if (!sub.checkers.includes(me.id)) return { error: "내가 맡거나 직접 올린 결과물은 다른 팀원이 확인합니다." };
-  if (sub.state.kind === "waiting") return { error: "완료 기준이 확정된 뒤에 확인할 수 있습니다." };
   if (sub.state.kind !== "open" && sub.state.kind !== "objected") return { error: "이 결과물은 확인이 끝났습니다." };
   const read = readAnswers(task.criteria.length, get);
   if ("error" in read) return read;

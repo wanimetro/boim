@@ -1,4 +1,4 @@
-import type { Answer, Round, SubmissionState } from "./criteria";
+import type { Answer, SubmissionState } from "./criteria";
 import { statusFromLatest } from "./criteria";
 
 export type Status = "done" | "wait" | "none";
@@ -18,17 +18,12 @@ export type Submission = {
 export type Task = {
   id: string; seq: number; code: string; title: string; owner_id: string; created_by: string | null;
   owner: string; owner_code: string; due: string; due_time: string; rule: string;
+  /** 팀이 업무를 나눌 때 정한 완료 기준 항목 */
   criteria: string[]; criteria_version: number;
-  /** 기준 합의 상태. voters가 대상 */
-  agreement: Round;
-  /** 현재 기준 차수의 항목별 합의 응답 */
-  votes: Answer[];
-  /** 기준에 의견을 낼 수 있는 팀원 (등록한 사람·담당자·올린 사람 제외) */
-  voters: string[];
   status: Status; latest: Submission | null; submissions: Submission[];
 };
 export type TaskInput = { title: string; owner_id: string; due: string; due_time: string; criteria: string[] };
-export type EditableTask = Omit<TaskInput, "criteria"> & { id: string; created_by: string | null; criteria: string[] };
+export type EditableTask = Omit<TaskInput, "criteria"> & { id: string; created_by: string | null; criteria: string[]; submissions?: { count: number }[] };
 
 export function statusOf(latest: Pick<Submission, "state"> | null): Status {
   return statusFromLatest(latest?.state ?? null);

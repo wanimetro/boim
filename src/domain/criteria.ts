@@ -1,6 +1,7 @@
 /**
- * 완료 기준 합의와 결과물 확인. 이름이 아니라 "항목"에 의견을 단다.
- * 확정: 대상자 전원이 모든 항목에 동의했거나, 시작 뒤 12시간 동안 반대 의견이 없을 때.
+ * 결과물 확인. 완료 기준은 팀이 업무를 나눌 때(대면·메신저) 정한 것을 그대로 입력하므로 앱에서 따로 합의하지 않는다.
+ * 팀원은 이름이 아니라 "항목"에 의견을 단다.
+ * 확정: 대상자 전원이 모든 항목을 충족으로 확인했거나, 시작 뒤 12시간 동안 미충족 의견이 없을 때.
  * 반대 의견(이유 필수)이 하나라도 있으면 확정되지 않는다.
  * 확정 여부는 저장된 응답과 시각만으로 계산한다(예약 작업 없음). 확정된 뒤에는 서비스가 응답을 받지 않으므로,
  * 12시간이 지난 뒤에 남은 응답은 "반대가 있었다가 철회된" 경우뿐이다 → 그 시각에 확정된 것으로 본다.
@@ -17,7 +18,7 @@ export type Round =
   | { kind: "open"; autoAt: number; answered: number; required: number }
   | { kind: "objected"; objections: Objection[]; answered: number; required: number };
 
-/** 한 차례(기준 합의 또는 결과물 확인)의 상태 */
+/** 한 차례 확인의 상태 */
 export function roundState(input: {
   items: number; version: number; start: number; participants: string[]; answers: Answer[]; now: number;
 }): Round {
@@ -49,34 +50,27 @@ export type SubmissionLike = {
 
 export type SubmissionState =
   | Round
-  | { kind: "waiting" }                       // 기준이 아직 확정되지 않아 확인을 시작하지 않음
   | { kind: "superseded" }                    // 확정되기 전에 새 결과물이 올라옴
   | { kind: "legacy"; pass: boolean; note: string | null }; // 예전 운영자 검수 결과
 
 /**
- * 결과물 하나의 확인 상태. 확인은 max(올린 시각, 기준 확정 시각)부터 시작한다.
+ * 결과물 하나의 확인 상태. 확인은 max(올린 시각, 지금 기준을 정한 시각)부터 시작한다.
+ * (올린 뒤에 팀장·등록한 사람이 기준을 고치면 그때부터 새 기준으로 다시 확인한다)
  * next: 이 결과물 다음에 올라온 결과물의 시각(있으면). 그 뒤의 시간은 이 결과물에 세지 않는다.
  */
 export function submissionState(input: {
-  sub: SubmissionLike; criteria: Round; items: number; version: number; checkers: string[]; checks: Answer[]; now: number; next: number | null;
+  sub: SubmissionLike; criteriaAt: number; items: number; version: number; checkers: string[]; checks: Answer[]; now: number; next: number | null;
 }): SubmissionState {
-  const { sub, criteria, items, version, checkers, checks, now, next } = input;
+  const { sub, criteriaAt, items, version, checkers, checks, now, next } = input;
   if (sub.review !== "pending") return { kind: "legacy", pass: sub.review === "pass", note: sub.review_note };
-  if (criteria.kind !== "confirmed") return next === null ? { kind: "waiting" } : { kind: "superseded" };
-  const start = Math.max(Date.parse(sub.created_at), criteria.at);
+  const start = Math.max(Date.parse(sub.created_at), criteriaAt);
   const until = next === null ? now : Math.min(now, next);
   const round = roundState({ items, version, start, participants: checkers, answers: checks, now: until });
   if (next !== null && round.kind === "open") return { kind: "superseded" };
   return round;
 }
 
-/** 자기 업무에는 의견을 내지 않는다: 기준 합의에서 등록한 사람·담당자·이 업무에 결과물을 올린 사람을 뺀다 */
-export function criteriaVoters(memberIds: string[], task: { created_by: string | null; owner_id: string }, uploaderIds: (string | null)[]): string[] {
-  const out = new Set<string | null>([task.created_by, task.owner_id, ...uploaderIds]);
-  return memberIds.filter((id) => !out.has(id));
-}
-
-/** 결과물 확인에서 올린 사람과 담당자를 뺀다 */
+/** 자기 결과물에는 의견을 내지 않는다: 결과물 확인에서 올린 사람과 담당자를 뺀다 */
 export function submissionCheckers(memberIds: string[], uploaderId: string | null, ownerId: string): string[] {
   return memberIds.filter((id) => id !== uploaderId && id !== ownerId);
 }

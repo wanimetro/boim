@@ -48,10 +48,10 @@ describe("task authorization and rules", () => {
     await expect(updateTaskForUser("user", token, 1, { ...input, title: "변경" })).resolves.toHaveProperty("error");
     expect(repo.updateWithEdit).not.toHaveBeenCalled();
   });
-  it("lets the owner change the criteria but nothing else", async () => {
-    repo.findTask.mockResolvedValue({ ...input, id: "task", created_by: "someone-else", owner_id: "member" });
-    await expect(updateTaskForUser("user", token, 1, { ...input, criteria: ["새 기준 하나"] })).resolves.toEqual({ ok: true, changed: true });
-    await expect(updateTaskForUser("user", token, 1, { ...input, title: "변경" })).resolves.toHaveProperty("error");
+  it("locks the criteria once something has been uploaded, but still allows other edits", async () => {
+    repo.findTask.mockResolvedValue({ ...input, id: "task", created_by: "member", submissions: [{ count: 1 }] });
+    await expect(updateTaskForUser("user", token, 1, { ...input, criteria: ["더 쉬운 기준"] })).resolves.toEqual({ error: "결과물이 이미 올라와서 완료 기준은 바꿀 수 없습니다." });
+    await expect(updateTaskForUser("user", token, 1, { ...input, title: "새 이름" })).resolves.toEqual({ ok: true, changed: true });
     expect(repo.updateWithEdit).toHaveBeenCalledTimes(1);
   });
   it("allows a leader to edit a task created by another member", async () => {

@@ -9,13 +9,11 @@ export type TaskDefaults = { title: string; owner_id: string; due: string; due_t
 const EXAMPLES = ["사례마다 출처 링크가 있다", "사례마다 3줄 요약이 있다", "문서 하나로 모았다"];
 
 /** 업무 등록·수정 공통 폼 */
-export function TaskForm({ action, members, minDate, defaults, submitLabel, criteriaNote, criteriaOnly, feedback }: {
+export function TaskForm({ action, members, minDate, defaults, submitLabel, criteriaNote, criteriaLocked }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   members: { id: string; name: string }[]; minDate: string; defaults?: TaskDefaults; submitLabel: string; criteriaNote?: string;
-  /** 담당자: 완료 기준만 고칠 수 있다. 나머지는 그대로 보내고 화면에는 읽기 전용으로 보여 준다 */
-  criteriaOnly?: boolean;
-  /** 항목 번호 → 받은 수정 의견(이름 없이) */
-  feedback?: { item: number; reasons: string[] }[];
+  /** 결과물이 올라온 뒤: 기준은 그대로 보내고 읽기 전용으로 보여 준다 */
+  criteriaLocked?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   // key로 항목을 구분해, 중간 항목을 지워도 나머지 입력이 섞이지 않게 한다
@@ -27,15 +25,6 @@ export function TaskForm({ action, members, minDate, defaults, submitLabel, crit
 
   return (
     <form className="panel" action={formAction}>
-      {criteriaOnly && defaults ? (
-        <>
-          <input type="hidden" name="title" value={defaults.title} />
-          <input type="hidden" name="owner" value={defaults.owner_id} />
-          <input type="hidden" name="due" value={defaults.due} />
-          <input type="hidden" name="due_time" value={defaults.due_time} />
-          <p className="callout small">담당자는 완료 기준만 고칠 수 있습니다. 업무 이름·담당·마감은 팀장이나 등록한 사람이 고칩니다.</p>
-        </>
-      ) : (<>
       <label className="field">
         <span>업무</span>
         <input id="title" name="title" required maxLength={80} defaultValue={defaults?.title} placeholder="예: 경쟁사 사례 3개 조사" />
@@ -58,16 +47,27 @@ export function TaskForm({ action, members, minDate, defaults, submitLabel, crit
         </label>
       </div>
       <p className="muted small">마감 1시간 전·30분 전에 아직 올리지 않은 담당자에게 앱 알림이 갑니다.</p>
-      </>)}
 
+      {criteriaLocked && defaults ? (
+        <fieldset className="criteria-edit">
+          <legend>완료 기준</legend>
+          <ol className="criteria">
+            {defaults.criteria.map((text, i) => (
+              <li key={i}><span className="num criteria-no">{i + 1}</span><span className="criteria-body">{text}</span>
+                <input type="hidden" name="criteria" value={text} /></li>
+            ))}
+          </ol>
+          {criteriaNote && <p className="callout warn-box small">{criteriaNote}</p>}
+        </fieldset>
+      ) : (
       <fieldset className="criteria-edit">
         <legend>완료 기준</legend>
         <p className="muted small">
-          파일만 보고 “됐다/안 됐다”를 가를 수 있게 항목으로 나눠 적어 주세요. 팀원이 항목마다 동의하거나 12시간 동안 수정 의견이 없으면 확정됩니다.
+          업무를 나눌 때 팀이 함께 정한 기준을 항목으로 나눠 적어 주세요. 파일만 보고 “됐다/안 됐다”를 가를 수 있게 적으면 좋아요. 담당자는 올리기 전에 이 항목을 하나씩 체크하고, 올린 뒤에는 다른 팀원이 항목마다 확인합니다.
         </p>
         <ol>
           {rows.map((r, i) => (
-            <li key={r.key} className={feedback?.some((f) => f.item === r.key) ? "has-feedback" : undefined}>
+            <li key={r.key}>
               <span className="num criteria-no" aria-hidden="true">{i + 1}</span>
               <label className="sr-only" htmlFor={`criteria-${r.key}`}>기준 {i + 1}</label>
               <input id={`criteria-${r.key}`} name="criteria" maxLength={100} value={r.text} required={i === 0}
@@ -75,15 +75,13 @@ export function TaskForm({ action, members, minDate, defaults, submitLabel, crit
               {rows.length > 1 && (
                 <button type="button" className="link-btn small" onClick={() => remove(r.key)} aria-label={`기준 ${i + 1} 지우기`}>지우기</button>
               )}
-              {feedback?.filter((f) => f.item === r.key).flatMap((f) => f.reasons).map((reason, j) => (
-                <span key={j} className="feedback-note">받은 의견: “{reason}”</span>
-              ))}
             </li>
           ))}
         </ol>
         {rows.length < MAX_CRITERIA && <button type="button" className="btn ghost small-btn self-start" onClick={add}>+ 기준 추가</button>}
         {criteriaNote && <p className="callout warn-box small">{criteriaNote}</p>}
       </fieldset>
+      )}
 
       {state.error && <p className="error" role="alert">{state.error}</p>}
       <button className="btn" type="submit" disabled={pending}>{pending ? "저장하는 중…" : submitLabel}</button>
