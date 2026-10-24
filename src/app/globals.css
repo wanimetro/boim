@@ -16,16 +16,8 @@
   --font-display-stack: var(--font-sans-stack);
   --font-mono-stack: var(--font-mono), ui-monospace, Consolas, monospace;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c1410; --surface: #131e19; --sunken: #0f1814; --line: #24332b; --line-strong: #5f7568;
-    --ink: #e7efe9; --muted: #9bb0a3;
-    --brand: #c6f36a; --brand-hover: #d6f88f; --on-brand: #10200a; --brand-soft: #1c2e25;
-    --accent: #c6f36a; --on-accent: #10200a;
-    --done: #c6f36a; --done-bg: #26381a; --wait: #f0c96a; --wait-bg: #382c10; --none: #ff8d77; --none-bg: #3d1c16;
-    color-scheme: dark;
-  }
-}
+/* 시안과 같은 밝은 화면으로 고정한다 (기기의 다크 모드를 따르지 않음) */
+:root { color-scheme: light; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -326,6 +318,7 @@ th { color: var(--muted); font-weight: 500; }
 .todo-card .pill { align-self: flex-start; }
 .todo-card .btn { margin-top: auto; padding: 10px; }
 .todo-card.is-feedback { border: 2px solid var(--none); }
+.todo-card.is-feedback .quote { background: #fdf3f0; }
 .todo-card.is-news { background: #0e5a43; border-color: #0e5a43; color: #ffffff; }
 .todo-card.is-news h2 { color: #ffffff; }
 .todo-card.is-news .small { color: #d8e6de; }
@@ -460,7 +453,6 @@ th { color: var(--muted); font-weight: 500; }
 .reupload { border-top: 1px solid var(--line); padding-top: 12px; }
 .reupload summary { cursor: pointer; font-size: .88rem; color: var(--muted); }
 .reupload[open] summary { margin-bottom: 12px; }
-@media (prefers-color-scheme: dark) { .now-card { background: #16241d; box-shadow: inset 0 0 0 1px #2f4339; } }
 
 @media (min-width: 960px) {
   .greeting { font-size: 1.8rem; }
