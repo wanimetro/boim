@@ -35,8 +35,9 @@ describe("round confirmation", () => {
     const r = roundState({ ...base, answers: [ans("a", 0, false, 1, 0), ans("creator", 0, false, 1)], now: T0 + 1 });
     expect(r.kind).toBe("open");
   });
-  it("confirms immediately when there is nobody else to ask", () => {
-    expect(roundState({ ...base, participants: [], answers: [], now: T0 })).toEqual({ kind: "confirmed", at: T0, by: "all" });
+  it("waits out the window instead of auto-confirming when there is nobody else to ask", () => {
+    expect(roundState({ ...base, participants: [], answers: [], now: T0 })).toMatchObject({ kind: "open", required: 0 });
+    expect(roundState({ ...base, participants: [], answers: [], now: T0 + W })).toEqual({ kind: "confirmed", at: T0 + W, by: "timeout" });
   });
 });
 

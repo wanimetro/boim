@@ -9,9 +9,13 @@ export async function prepareSubmission(userId: string | null, token: string, se
   try { return await repo.prepare(`${team.code}/${task.seq}/${crypto.randomUUID()}${ext}`); }
   catch { return { error: "업로드를 준비하지 못했습니다." }; }
 }
-export async function submitWorkForUser(userId: string | null, token: string, seq: number, input: { path?: string; fileName?: string; link?: string; note?: string }) {
+export async function submitWorkForUser(userId: string | null, token: string, seq: number, input: { path?: string; fileName?: string; link?: string; note?: string; checked?: number[] }) {
   const { team, me } = await requireTeamMember(userId, token);
   const task = await repo.task(team.id, seq);
+  // 올리기 전 스스로 확인: 완료 기준의 모든 항목을 체크해야 올릴 수 있다 (화면을 우회한 요청도 막는다)
+  const items = ((task as { criteria?: string[] | null }).criteria ?? []).length;
+  const checked = new Set((input.checked ?? []).filter((i) => Number.isInteger(i) && i >= 0 && i < items));
+  if (checked.size < items) return { error: "완료 기준을 모두 확인하고 체크해야 올릴 수 있습니다." };
   const path = input.path && input.path.startsWith(`${team.code}/${task.seq}/`) ? input.path : null;
   const link = input.link?.trim() || null;
   if (link && !/^https?:\/\/\S+$/.test(link)) return { error: "링크는 https:// 로 시작해야 합니다." };

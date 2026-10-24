@@ -147,6 +147,27 @@ input, select, textarea, button { font: inherit; color: inherit; }
 .choice label.on.no { background: var(--none-bg); color: var(--none); border-color: var(--none); }
 .answer-links { margin: 0; padding-left: 18px; }
 
+/* 올리기 전 스스로 확인 */
+.self-check { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.self-check legend { font-size: .88rem; color: var(--muted); padding: 0; margin-bottom: 2px; display: flex; gap: 6px; }
+.self-check ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.self-check label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--radius-md);
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: .92rem; font-weight: 600; overflow-wrap: anywhere; }
+.self-check label.on { border-color: var(--done-bg); background: var(--brand-soft); }
+.self-check input { position: absolute; opacity: 0; pointer-events: none; }
+.self-check .box { flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 6px; border: 2px solid var(--line-strong); display: grid; place-items: center; }
+.self-check label.on .box { background: var(--done-bg); border-color: var(--done-bg); }
+.self-check label.on .box::after { content: ""; width: 5px; height: 10px; border: solid var(--done); border-width: 0 2.5px 2.5px 0; transform: translateY(-1px) rotate(45deg); }
+.self-check label:has(input:focus-visible) { outline: var(--focus-width) solid var(--brand); outline-offset: 2px; }
+
+/* 팝업 */
+.modal { border: 0; padding: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--ink);
+  width: min(420px, calc(100vw - 32px)); box-shadow: 0 12px 40px rgba(0, 0, 0, .25); }
+.modal::backdrop { background: rgba(6, 14, 10, .55); }
+.modal-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.modal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.modal-list li { display: flex; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-md); background: var(--none-bg); font-weight: 600; font-size: .92rem; overflow-wrap: anywhere; }
+
 /* ===== 알림·초대 ===== */
 .notify { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: var(--radius-md);
   background: var(--brand-soft); border: 1px dashed var(--brand); font-size: .88rem; color: var(--ink); }

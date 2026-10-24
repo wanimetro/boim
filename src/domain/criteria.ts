@@ -36,8 +36,9 @@ export function roundState(input: {
 
   const autoAt = start + CONFIRM_WINDOW_MS;
   const last = rows.reduce((m, r) => Math.max(m, Date.parse(r.created_at)), -Infinity);
-  if (last > autoAt) return { kind: "confirmed", at: last, by: answered === required ? "all" : "timeout" };
-  if (answered === required) return { kind: "confirmed", at: Math.max(start, last), by: "all" };
+  if (last > autoAt) return { kind: "confirmed", at: last, by: required > 0 && answered === required ? "all" : "timeout" };
+  // 확인할 사람이 아무도 없으면(혼자인 팀) "전원 동의"로 치지 않고 12시간을 기다린다. 그사이 들어온 팀원이 확인할 수 있다
+  if (required > 0 && answered === required) return { kind: "confirmed", at: Math.max(start, last), by: "all" };
   if (now >= autoAt) return { kind: "confirmed", at: autoAt, by: "timeout" };
   return { kind: "open", autoAt, answered, required };
 }

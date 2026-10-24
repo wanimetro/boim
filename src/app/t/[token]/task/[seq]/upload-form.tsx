@@ -1,23 +1,31 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { uploadSignedFile } from "@/client/storage-upload";
 import { prepareUpload, submitWork } from "../../actions";
 
-export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
-  token: string; seq: number; isOwner: boolean; ownerName: string; meName: string;
+export function UploadForm({ token, seq, criteria, isOwner, ownerName, meName }: {
+  token: string; seq: number; criteria: string[]; isOwner: boolean; ownerName: string; meName: string;
 }) {
   const [mode, setMode] = useState<"file" | "link">("file");
   const [file, setFile] = useState<File | null>(null);
   const [link, setLink] = useState("");
   const [note, setNote] = useState("");
+  const [checked, setChecked] = useState<boolean[]>(() => criteria.map(() => false));
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [pending, start] = useTransition();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const left = criteria.flatMap((text, i) => (checked[i] ? [] : [{ i, text }]));
+  const toggle = (i: number) => setChecked(checked.map((c, j) => (j === i ? !c : c)));
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    // 올리기 전에 스스로 기준을 하나씩 확인한다. 남은 항목이 있으면 팝업으로 알려 주고 올리지 않는다
+    if (left.length) { dialog.current?.showModal(); return; }
     start(async () => {
       let path: string | undefined;
       if (mode === "file") {
@@ -30,9 +38,11 @@ export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
       }
       const res = await submitWork(token, seq, {
         path, fileName: file?.name, link: mode === "link" ? link : undefined, note,
+        checked: checked.flatMap((c, i) => (c ? [i] : [])),
       });
       if (res.error) return setError(res.error);
-      setDone(true); setFile(null); setLink(""); setNote("");
+      setDone(true); setFile(null); setLink(""); setNote(""); setChecked(criteria.map(() => false));
+      if (fileInput.current) fileInput.current.value = "";
     });
   };
 
@@ -62,7 +72,7 @@ export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
       {mode === "file" ? (
         <label className="field">
           <span>파일 (20MB까지)</span>
-          <input id="file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input id="file" ref={fileInput} type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
       ) : (
         <label className="field">
@@ -71,6 +81,24 @@ export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
         </label>
       )}
 
+      <fieldset className="self-check">
+        <legend>
+          올리기 전 확인 <span className="num muted">{criteria.length - left.length}/{criteria.length}</span>
+        </legend>
+        <p className="muted small">완료 기준을 하나씩 확인하고 체크해 주세요. 모두 체크해야 올릴 수 있습니다.</p>
+        <ul>
+          {criteria.map((text, i) => (
+            <li key={i}>
+              <label className={checked[i] ? "on" : undefined}>
+                <input type="checkbox" checked={checked[i]} onChange={() => toggle(i)} />
+                <span className="box" aria-hidden="true" />
+                <span><span className="num criteria-no">{i + 1}</span>{text}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </fieldset>
+
       <label className="field">
         <span>한 줄 메모 (선택)</span>
         <input id="note" type="text" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} placeholder="예: 3장은 내일 보완 예정" />
@@ -78,6 +106,18 @@ export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
 
       {error && <p className="error" role="alert">{error}</p>}
       <button className="btn" type="submit" disabled={pending}>{pending ? "올리는 중…" : "올리기"}</button>
+
+      <dialog ref={dialog} className="modal" aria-labelledby={`left-${seq}`} onClick={(e) => { if (e.target === dialog.current) dialog.current?.close(); }}>
+        <div className="modal-body">
+          <h2 id={`left-${seq}`}>아직 확인하지 않은 기준이 있어요</h2>
+          <p className="muted small">결과물이 아래 항목을 채웠는지 직접 확인하고 체크해야 올릴 수 있습니다.</p>
+          <ul className="modal-list">
+            {left.map(({ i, text }) => <li key={i}><span className="num criteria-no">{i + 1}</span>{text}</li>)}
+          </ul>
+          <p className="muted small">체크는 올리는 사람이 스스로 확인하는 단계예요. 올린 뒤에는 다른 팀원이 항목마다 다시 확인합니다.</p>
+          <button className="btn" type="button" onClick={() => dialog.current?.close()}>확인하러 가기</button>
+        </div>
+      </dialog>
     </form>
   );
 }

@@ -8,7 +8,7 @@ import { submitWorkForUser,prepareSubmission } from "@/server/services/submissio
 beforeEach(()=>{
   vi.resetAllMocks();
   vi.mocked(requireTeamMember).mockResolvedValue({team:{id:'team',code:'T1',name:'팀',token:'token',invite_code:null},members:[],me:{id:'member',user_id:'user',code:'U01',is_leader:false,nickname:'팀원'},userId:'user'});
-  vi.mocked(repo.task).mockResolvedValue({id:'task',seq:2});
+  vi.mocked(repo.task).mockResolvedValue({id:'task',seq:2,criteria:['자료 다섯 장','출처']});
 });
 describe('submission authorization and storage boundary',()=>{
   it('rejects a nonmember before looking up the task or issuing an upload capability',async()=>{
@@ -17,12 +17,17 @@ describe('submission authorization and storage boundary',()=>{
     expect(repo.prepare).not.toHaveBeenCalled(); expect(repo.task).not.toHaveBeenCalled();
   });
   it('does not save a file path from another team',async()=>{
-    expect(await submitWorkForUser('user','token',2,{path:'T2/2/other.pdf'})).toHaveProperty('error');
+    expect(await submitWorkForUser('user','token',2,{path:'T2/2/other.pdf',checked:[0,1]})).toHaveProperty('error');
     expect(repo.save).not.toHaveBeenCalled();
   });
   it('derives uploader identity from membership rather than client input',async()=>{
-    await submitWorkForUser('user','token',2,{path:'T1/2/file.pdf',note:'  제출  '});
+    await submitWorkForUser('user','token',2,{path:'T1/2/file.pdf',note:'  제출  ',checked:[0,1]});
     expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({task_id:'task',uploader_id:'member',note:'제출'}));
+  });
+  it('refuses to save until every criterion is self-checked',async()=>{
+    expect(await submitWorkForUser('user','token',2,{link:'https://example.com',checked:[0]})).toEqual({error:'완료 기준을 모두 확인하고 체크해야 올릴 수 있습니다.'});
+    expect(await submitWorkForUser('user','token',2,{link:'https://example.com',checked:[0,0,5]})).toHaveProperty('error');
+    expect(repo.save).not.toHaveBeenCalled();
   });
   it('rejects an oversized upload before creating the signed capability',async()=>{
     expect(await prepareSubmission('user','token',2,'file.pdf',21*1024*1024)).toHaveProperty('error');

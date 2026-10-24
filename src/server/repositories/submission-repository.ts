@@ -2,7 +2,7 @@ import "server-only";
 import { db, BUCKET } from "@/lib/supabase";
 export const submissionRepository = {
   async task(teamId: string, seq: number) {
-    const { data, error } = await db().from("tasks").select("id, seq").eq("team_id", teamId).eq("seq", seq).maybeSingle();
+    const { data, error } = await db().from("tasks").select("id, seq, criteria").eq("team_id", teamId).eq("seq", seq).maybeSingle();
     if (error) throw error;
     if (!data) throw new Error("업무를 찾을 수 없습니다.");
     return data;

@@ -89,7 +89,13 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
             <div className="panel-head"><h2>완료 기준</h2><span className={`pill ${aPill.cls}`}>{aPill.label}</span></div>
             <CriteriaList criteria={task.criteria} objections={a.kind === "objected" ? a.objections : undefined} tone="수정 의견" />
             {a.kind === "confirmed" && <p className="muted small">{confirmedBy(a.by, "기준")} 이 기준으로 결과물을 확인합니다.</p>}
-            {a.kind === "open" && (
+            {a.kind === "open" && a.required === 0 && (
+              <p className="muted small">
+                아직 함께 확인할 팀원이 없습니다. 팀원을 초대하면 그 팀원이 동의 여부를 고를 수 있고, 아무도 의견을 내지 않으면{" "}
+                <b className="num">{dateTime(new Date(a.autoAt).toISOString())}</b>에 이 기준으로 확정됩니다.
+              </p>
+            )}
+            {a.kind === "open" && a.required > 0 && (
               <p className="muted small">
                 팀원 <b className="num">{a.answered}/{a.required}</b>명이 답했습니다.{" "}
                 <b className="num">{dateTime(new Date(a.autoAt).toISOString())}</b>까지 수정 의견이 없으면 이 기준으로 확정됩니다.
@@ -126,7 +132,13 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
               {latest.note && <p className="muted small">메모: {latest.note}</p>}
 
               {st.kind === "waiting" && <p className="muted small">완료 기준이 확정되면 팀원 확인이 시작됩니다.</p>}
-              {st.kind === "open" && (
+              {st.kind === "open" && st.required === 0 && (
+                <p className="muted small">
+                  아직 확인할 다른 팀원이 없습니다. 팀원을 초대하면 그 팀원이 항목마다 확인하고, 아무도 미충족 의견을 내지 않으면{" "}
+                  <b className="num">{dateTime(new Date(st.autoAt).toISOString())}</b>에 완료됩니다.
+                </p>
+              )}
+              {st.kind === "open" && st.required > 0 && (
                 <p className="muted small">
                   팀원 <b className="num">{st.answered}/{st.required}</b>명이 확인했습니다.{" "}
                   <b className="num">{dateTime(new Date(st.autoAt).toISOString())}</b>까지 미충족 의견이 없으면 완료됩니다.
@@ -161,7 +173,7 @@ export default async function TaskPage({ params }: PageProps<"/t/[token]/task/[s
         </div>
 
         <div className="split-b">
-          <UploadForm token={token} seq={task.seq} isOwner={isOwner} ownerName={task.owner} meName={me.nickname} />
+          <UploadForm token={token} seq={task.seq} criteria={task.criteria} isOwner={isOwner} ownerName={task.owner} meName={me.nickname} />
         </div>
 
         <div className="split-c">

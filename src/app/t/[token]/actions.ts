@@ -43,7 +43,7 @@ export async function savePush(token: string, sub: { endpoint: string; keys: { p
 }
 export async function removePush(token: string, endpoint: string) { await removePushForUser((await currentUser())?.id ?? null, token, endpoint); }
 export async function prepareUpload(token: string, seq: number, fileName: string, size: number) { return prepareSubmission((await currentUser())?.id ?? null, token, seq, fileName, size); }
-export async function submitWork(token: string, seq: number, input: { path?: string; fileName?: string; link?: string; note?: string }): Promise<FormState> {
+export async function submitWork(token: string, seq: number, input: { path?: string; fileName?: string; link?: string; note?: string; checked?: number[] }): Promise<FormState> {
   const result = await submitWorkForUser((await currentUser())?.id ?? null, token, seq, input);
   if (!("error" in result)) revalidatePath(`/t/${token}`); return result;
 }
