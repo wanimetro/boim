@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { currentUser, safeNext, PROVIDERS } from "@/lib/auth";
 import { teamByInvite } from "@/lib/data";
 import { AuthForms } from "./auth-forms";
+import { BrandLockup } from "../brand-logo";
 
 export const metadata: Metadata = { title: "로그인 · 보임" };
 
@@ -18,8 +19,7 @@ export default async function Login({ searchParams }: PageProps<"/login">) {
   return (
     <div className="auth">
       <section className="auth-brand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/boim-logo.png" alt="보임 BOIM" width={240} height={240} />
+        <BrandLockup />
         <p className="tagline">묻지 않아도 어디까지 됐는지 보이는 팀플</p>
       </section>
       <main className="auth-form">

@@ -3,6 +3,7 @@ import { currentUser } from "@/lib/auth";
 import { teamsOfUser } from "@/lib/data";
 import { AppShell } from "./app-shell";
 import { HomeForms } from "./home-forms";
+import { BrandLockup } from "./brand-logo";
 
 export default async function Home() {
   const user = await currentUser();
@@ -11,8 +12,7 @@ export default async function Home() {
     return (
       <div className="auth">
         <section className="auth-brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/boim-logo.png" alt="보임 BOIM" width={240} height={240} />
+          <BrandLockup />
           <p className="tagline">묻지 않아도 어디까지 됐는지 보이는 팀플</p>
         </section>
         <main className="auth-form">

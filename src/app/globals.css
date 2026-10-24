@@ -1,34 +1,36 @@
-/* 보임 BOIM — 디자인 시스템(https://claude.ai/artifact/7QMVTYZGJtM4fXKvnZkHzS) 토큰과 컴포넌트.
-   모바일 먼저, 960px(bp-desktop) 이상은 PC 배치. 값을 바꿀 때는 디자인 시스템의 tokens.json도 같이 바꾼다. */
+/* 보임 BOIM — 딥 그린 + 라임. 모바일 먼저, 960px(bp-desktop) 이상은 PC 배치.
+   브랜드: 딥 그린(--brand)은 행동·링크, 라임(--accent)은 "완료·보임" 강조에만 쓴다. */
 
 :root {
-  --bg: #f4f7fc; --surface: #ffffff; --sunken: #e9eff8; --line: #d5deec; --line-strong: #7c899f;
-  --ink: #061d45; --muted: #465970;
-  --brand: #014ffd; --brand-hover: #0040d4; --on-brand: #ffffff; --brand-soft: #e6eeff;
-  --mark-blue: #014ffd; --mark-sky: #008afd; --mark-cyan: #00c1fb;
-  --done: #13784a; --done-bg: #e2f4ea; --wait: #8a5a00; --wait-bg: #fdf1d8; --none: #b23a2a; --none-bg: #fde6e1;
+  --bg: #f2f5f2; --surface: #ffffff; --sunken: #eaefeb; --line: #dbe3dc; --line-strong: #8a9a90;
+  --ink: #0f1f18; --muted: #55675d;
+  --brand: #0e5a43; --brand-hover: #0a4634; --on-brand: #ffffff; --brand-soft: #e2efe8;
+  --accent: #c6f36a; --on-accent: #24400a;
+  --done: #24400a; --done-bg: #c6f36a; --wait: #7a5600; --wait-bg: #f7edcf; --none: #9a2b18; --none-bg: #fde0d9;
 
-  --radius-xs: 6px; --radius-sm: 8px; --radius-md: 10px; --radius-lg: 12px; --radius-pill: 999px;
+  --radius-xs: 6px; --radius-sm: 8px; --radius-md: 12px; --radius-lg: 14px; --radius-pill: 999px;
   --width-app: 560px; --width-desktop: 1200px; --sidebar: 264px;
   --topbar-desktop: 64px; --topbar-mobile: 56px; --tap: 44px; --focus-width: 3px;
 
-  --font-sans-stack: var(--font-sans), system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-display-stack: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  --font-sans-stack: "Pretendard Variable", Pretendard, system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-display-stack: var(--font-sans-stack);
   --font-mono-stack: var(--font-mono), ui-monospace, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0b1222; --surface: #131c31; --sunken: #0f1729; --line: #27344f; --line-strong: #62729a;
-    --ink: #e8eef8; --muted: #9eabc2;
-    --brand: #5b93ff; --brand-hover: #7aa8ff; --on-brand: #06122b; --brand-soft: #16264a;
-    --done: #5fd39a; --done-bg: #123526; --wait: #f0c15a; --wait-bg: #3a2c0c; --none: #ff8d77; --none-bg: #3d1c16;
+    --bg: #0c1410; --surface: #131e19; --sunken: #0f1814; --line: #24332b; --line-strong: #5f7568;
+    --ink: #e7efe9; --muted: #9bb0a3;
+    --brand: #c6f36a; --brand-hover: #d6f88f; --on-brand: #10200a; --brand-soft: #1c2e25;
+    --accent: #c6f36a; --on-accent: #10200a;
+    --done: #c6f36a; --done-bg: #26381a; --wait: #f0c96a; --wait-bg: #382c10; --none: #ff8d77; --none-bg: #3d1c16;
     color-scheme: dark;
   }
 }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans-stack); font-size: 15px; line-height: 1.55;
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans-stack); font-size: 15px; line-height: 1.55; letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
   padding-bottom: env(safe-area-inset-bottom, 0px); }
 h1, h2, h3 { margin: 0; line-height: 1.3; text-wrap: balance; color: var(--ink); }
 h1 { font-size: 1.35rem; } h2 { font-size: 1.08rem; } h3 { font-size: 1rem; }
@@ -42,7 +44,7 @@ input, select, textarea, button { font: inherit; color: inherit; }
 .eyebrow { font-size: .75rem; letter-spacing: .05em; color: var(--muted); font-weight: 500; }
 .muted { color: var(--muted); } .fg { color: var(--ink); } .small { font-size: .85rem; }
 .num { font-family: var(--font-mono-stack); font-variant-numeric: tabular-nums; }
-.display { font-family: var(--font-display-stack); font-weight: 800; letter-spacing: -0.01em; }
+.display { font-family: var(--font-display-stack); font-weight: 800; letter-spacing: -0.03em; }
 .big { font-family: var(--font-display-stack); font-size: 2rem; font-weight: 800; display: flex; gap: 12px; align-items: center; }
 .error { color: var(--none); font-size: .88rem; }
 .ok { color: var(--done); font-size: .88rem; }
@@ -139,7 +141,7 @@ th { color: var(--muted); font-weight: 500; }
 .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
 .topbar-in { height: var(--topbar-mobile); max-width: var(--width-desktop); margin: 0 auto; padding-inline: 16px; display: flex; align-items: center; gap: 12px; }
 .topbar .brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display-stack); font-weight: 800; font-size: 1.1rem; color: var(--ink); text-decoration: none; margin-right: auto; }
-.topbar .brand img { height: 22px; width: auto; display: block; }
+.topbar .brand .brand-mark { display: block; flex: none; }
 .topbar .who { font-size: .85rem; color: var(--muted); }
 .topbar form { display: contents; }
 .topbar .link-btn { align-self: center; }
@@ -170,7 +172,10 @@ th { color: var(--muted); font-weight: 500; }
 /* 로그인 */
 .auth { min-height: 100dvh; display: flex; flex-direction: column; }
 .auth-brand { display: flex; flex-direction: column; gap: 10px; padding: 28px 16px 8px; max-width: var(--width-app); width: 100%; margin: 0 auto; }
-.auth-brand img { width: 120px; height: auto; }
+.lockup { display: flex; align-items: center; gap: 14px; }
+.lockup-text { display: flex; flex-direction: column; line-height: 1; gap: 6px; }
+.lockup-ko { font-weight: 800; font-size: 2rem; letter-spacing: -0.04em; color: var(--ink); }
+.lockup-en { font-weight: 700; font-size: .72rem; letter-spacing: .24em; color: var(--muted); }
 .auth-brand .tagline { display: none; }
 .auth-form { padding: 12px 16px 48px; max-width: var(--width-app); width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
 
@@ -192,7 +197,6 @@ th { color: var(--muted); font-weight: 500; }
 /* ===================== PC (960px 이상) ===================== */
 @media (min-width: 960px) {
   .topbar-in { height: var(--topbar-desktop); padding-inline: 24px; }
-  .topbar .brand img { height: 26px; }
 
   .shell { padding-inline: 24px; padding-block: 28px 64px; grid-template-columns: var(--sidebar) minmax(0, 1fr); gap: 32px; align-items: start; }
   .shell > .main { max-width: none; margin: 0; grid-column: 2; grid-row: 1; }
@@ -217,9 +221,9 @@ th { color: var(--muted); font-weight: 500; }
   .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .auth { flex-direction: row; }
-  .auth-brand { flex: 1; max-width: none; margin: 0; padding: 64px; justify-content: center; align-items: flex-start; background: var(--surface); border-right: 1px solid var(--line); }
-  .auth-brand img { width: 240px; }
-  .auth-brand .tagline { display: block; font-size: 1.1rem; color: var(--muted); max-width: 360px; }
+  .auth-brand { flex: 1; max-width: none; margin: 0; padding: 64px; justify-content: center; align-items: flex-start; background: #0f1f18; border-right: 0; }
+  .auth-brand .lockup-ko { color: #ffffff; } .auth-brand .lockup-en { color: #c6f36a; }
+  .auth-brand .tagline { display: block; font-size: 1.25rem; font-weight: 600; color: #c9d6ce; max-width: 360px; letter-spacing: -0.02em; }
   .auth-form { flex: 1; justify-content: center; padding: 64px; max-width: calc(var(--width-app) + 128px); margin: 0; }
 
   .btn, .seg button, .task, .field input, .field select, .copy-row .copy, .code-input { min-height: 0; }
