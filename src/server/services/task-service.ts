@@ -1,6 +1,7 @@
 import "server-only";
 import type { TaskInput } from "@/domain/task";
 import { deadlineMs } from "@/domain/time";
+import { criteriaError, normalizeCriteria } from "@/domain/criteria";
 import { taskRepository } from "@/server/repositories/task-repository";
 
 export type TaskResult = { ok: true; changed: boolean } | { error: string };
@@ -24,12 +25,11 @@ function validate(input: TaskInput, memberIds: string[], now: number): string | 
   if (!/^\d{2}:\d{2}$/.test(input.due_time)) return "마감 시각을 다시 골라 주세요.";
   const deadline = deadlineMs(input.due, input.due_time);
   if (!Number.isFinite(deadline) || deadline <= now) return "마감은 지금보다 뒤로 정해 주세요.";
-  if (input.rule.length < 5 || input.rule.length > 200) return "완료 기준을 파일을 보고 판단할 수 있게 한 줄로 적어 주세요.";
-  return null;
+  return criteriaError(input.criteria);
 }
 
 function normalize(input: TaskInput): TaskInput {
-  return { ...input, title: input.title.trim(), rule: input.rule.trim(), due_time: input.due_time || "23:59" };
+  return { ...input, title: input.title.trim(), criteria: normalizeCriteria(input.criteria), due_time: input.due_time || "23:59" };
 }
 
 export async function createTaskForUser(userId: string | null, token: string, raw: TaskInput): Promise<TaskResult> {
@@ -55,8 +55,8 @@ export async function updateTaskForUser(userId: string | null, token: string, se
   const input = normalize(raw);
   const error = validate(input, members.map(member => member.id), now);
   if (error) return { error };
-  const before: TaskInput = { title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time.slice(0, 5), rule: task.rule };
-  const changed = (Object.keys(input) as (keyof TaskInput)[]).filter(key => input[key] !== before[key]);
+  const before: TaskInput = { title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time.slice(0, 5), criteria: task.criteria };
+  const changed = (Object.keys(input) as (keyof TaskInput)[]).filter(key => JSON.stringify(input[key]) !== JSON.stringify(before[key]));
   if (!changed.length) return { ok: true, changed: false };
   try {
     const saved = await taskRepository.updateWithEdit(task.id, me.id, input);

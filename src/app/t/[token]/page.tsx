@@ -34,6 +34,10 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
   tasks.forEach((t) => count[t.status]++);
   const next = tasks.find((t) => t.status !== "done");
   const mine = tasks.filter((t) => t.owner_id === me.id && t.status !== "done");
+  // 내가 답할 차례: 기준 합의(등록한 사람 제외) 또는 남이 올린 결과물 확인
+  const toAnswer = tasks.filter((t) =>
+    (t.agreement.kind === "open" && t.created_by !== me.id && !t.votes.some((v) => v.member_id === me.id)) ||
+    (t.latest && t.latest.state.kind === "open" && t.latest.uploader_id !== me.id && !t.latest.checks.some((c) => c.member_id === me.id)));
   // PC 칸 안에서는 내 업무가 먼저, 그다음 마감순 (tasks는 이미 마감순)
   const inColumn = (s: Status): Task[] =>
     tasks.filter((t) => t.status === s).sort((a, b) => Number(b.owner_id === me.id) - Number(a.owner_id === me.id));
@@ -55,6 +59,18 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
         <p className="callout">
           <b>{me.nickname}</b> 님이 올릴 업무가 <b className="num">{mine.length}</b>개 있습니다.
         </p>
+      )}
+
+      {toAnswer.length > 0 && (
+        <div className="callout stack-sm">
+          <p>확인을 기다리는 업무가 <b className="num">{toAnswer.length}</b>개 있습니다.</p>
+          <ul className="answer-links">
+            {toAnswer.map((t) => (
+              <li key={t.id}><Link href={`/t/${token}/task/${t.seq}`}>{t.title}</Link>
+                <span className="muted small"> · {t.agreement.kind === "open" ? "기준 합의" : "결과물 확인"}</span></li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <section className="summary" aria-label="상태 요약">
@@ -95,7 +111,7 @@ export default async function Board({ params }: PageProps<"/t/[token]">) {
         </>
       )}
 
-      <p className="note">“완료”는 완료 기준에 맞는 파일이 올라와야만 바뀝니다. 올린 파일은 확인을 거쳐 완료로 표시됩니다.</p>
+      <p className="note">“완료”는 결과물이 올라와야만 바뀝니다. 팀원이 완료 기준을 항목마다 확인하고, 전원이 충족으로 확인하거나 12시간 동안 미충족 의견이 없으면 완료됩니다. 누가 어떤 의견을 냈는지는 보이지 않습니다.</p>
 
       <div className="action-bar only-mobile"><Link className="btn" href={`/t/${token}/new`}>업무 등록하기</Link></div>
     </AppShell>

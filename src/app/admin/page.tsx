@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { isAdmin } from "@/lib/admin";
 import { getAdminDashboard } from "@/server/services/admin-service";
-import { dateTime, dueLabel, md } from "@/lib/format";
+import { dateTime, md } from "@/lib/format";
 import { LoginForm } from "./forms";
-import { review, toggleStudy } from "./actions";
+import { toggleStudy } from "./actions";
 
 export const metadata: Metadata = { title: "보임 운영", robots: { index: false } };
 
@@ -19,13 +19,13 @@ export default async function Admin() {
     );
   }
 
-  const { rows, study, sum, rate, v, pushStats, recent, taskInfo, memberCode, editsOf, editLabel, queue, signed } = await getAdminDashboard();
+  const { rows, study, sum, rate, v, pushStats, recent, taskInfo, memberCode, editsOf, flow } = await getAdminDashboard();
 
   return (
     <main className="wrap wide">
       <header className="stack-sm">
         <span className="eyebrow">보임 운영 · 오즈의 마법사</span>
-        <h1>판정과 검수</h1>
+        <h1>판정과 흐름</h1>
       </header>
 
       <section className="panel">
@@ -52,7 +52,7 @@ export default async function Admin() {
             </tbody>
           </table>
         </div>
-        <p className="muted small">검수 대기 중인 결과물은 통과해야 셉니다. 남은 검수를 먼저 끝내 주세요.</p>
+        <p className="muted small">결과물은 팀원 확인이 끝나야(전원 충족 또는 12시간 동안 미충족 의견 없음) 통과로 셉니다.</p>
       </section>
 
       <section className="panel">
@@ -91,38 +91,27 @@ export default async function Admin() {
         )}
       </section>
 
-      <section className="stack">
-        <h2>검수 대기 {queue.length}건</h2>
-        <p className="muted small">완료 기준(파일이 열리는지, 정한 분량을 채웠는지)만 봅니다. 내용의 질은 판단하지 않습니다.</p>
-        {queue.length === 0 && <p className="muted">확인할 결과물이 없습니다.</p>}
-        {queue.map(({ r, t, s }, i) => {
-          const uploader = r.members.find((m) => m.id === s.uploader_id)?.code ?? "?";
-          const self = s.uploader_id === t.owner_id;
-          return (
-            <article key={s.id} className="panel">
-              <span className="eyebrow"><span className="num">{t.code}</span> · 마감 {dueLabel(t.due, t.due_time)} · 올림 {dateTime(s.created_at)}</span>
-              <h3>{t.title}</h3>
-              <p className="rulebox">{t.rule}</p>
-              {editLabel(t.id) && <p className="small warn">{editLabel(t.id)}</p>}
-              <p className="small">
-                담당 <b className="num">{t.owner_code}</b> · 올린 사람 <b className="num">{uploader}</b>{" "}
-                <span className={`pill ${self ? "s-done" : "s-wait"}`}>{self ? "본인" : "대신"}</span>
-              </p>
-              <p className="small clip">
-                {signed[i] && <a href={signed[i]!} target="_blank" rel="noopener">{s.file_name ?? "파일 열기"}</a>}
-                {s.link_url && <a href={s.link_url} target="_blank" rel="noopener noreferrer">{s.link_url}</a>}
-              </p>
-              {s.note && <p className="muted small">메모: {s.note}</p>}
-              <form action={review} className="review-row">
-                <input type="hidden" name="id" value={s.id} />
-                <button className="btn" name="verdict" value="pass">기준 충족 · 통과</button>
-                <label className="sr-only" htmlFor={`reason-${s.id}`}>반려 이유</label>
-                <input id={`reason-${s.id}`} name="reason" placeholder="반려 이유 (담당자에게 보임)" />
-                <button className="btn ghost" name="verdict" value="fail">반려</button>
-              </form>
-            </article>
-          );
-        })}
+      <section className="panel">
+        <h2>팀원 확인 흐름</h2>
+        <p className="muted small">
+          운영자 검수 대신 팀원이 항목마다 확인합니다. 기준은 등록한 사람을 뺀 팀원이, 결과물은 올린 사람을 뺀 팀원이 봅니다.
+          전원 동의하거나 12시간 동안 반대 의견이 없으면 확정됩니다. 누가 반대했는지는 팀 화면에도 운영 화면에도 보이지 않습니다.
+        </p>
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>팀</th><th>기준 합의 중</th><th>기준 의견 있음</th><th>결과물 확인 중</th><th>미충족 의견</th><th>전원 확인 완료</th><th>12시간 경과 완료</th></tr></thead>
+            <tbody>
+              {flow.map((f) => (
+                <tr key={f.r.team.id}>
+                  <td>{f.r.team.code}</td>
+                  <td className="num">{f.agreeing}</td><td className="num">{f.agreeBlocked}</td>
+                  <td className="num">{f.checking}</td><td className="num">{f.rejected}</td>
+                  <td className="num">{f.byAll}</td><td className="num">{f.byTimeout}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="panel">

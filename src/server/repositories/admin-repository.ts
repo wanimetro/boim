@@ -1,5 +1,5 @@
 import "server-only";
-import { db, BUCKET } from "@/lib/supabase";
+import { db } from "@/lib/supabase";
 function checked<T>(r: { data: T; error: unknown }): T { if (r.error) throw r.error; return r.data; }
 export const adminRepository = {
   async teams() { return checked(await db().from("teams").select("id, code, name, token, invite_code, in_study, created_at").order("created_at")); },
@@ -7,7 +7,5 @@ export const adminRepository = {
   async devices(ids: string[]) { return checked(await db().from("push_subscriptions").select("user_id").in("user_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"])); },
   async notifications() { return checked(await db().from("notifications").select("task_id, member_id, kind, status, error, sent_at").order("sent_at", { ascending: false }).limit(500)); },
   async edits() { return checked(await db().from("task_edits").select("task_id, after, created_at").order("created_at", { ascending: false })); },
-  async signedUrl(path: string) { const { data } = await db().storage.from(BUCKET).createSignedUrl(path, 3600); return data?.signedUrl ?? null; },
-  async review(id: string, verdict: "pass" | "fail", reason: string | null) { const { error } = await db().from("submissions").update({ review: verdict, review_note: reason, reviewed_at: new Date().toISOString() }).eq("id", id); if (error) throw error; },
   async study(id: string, included: boolean) { const { error } = await db().from("teams").update({ in_study: included }).eq("id", id); if (error) throw error; },
 };

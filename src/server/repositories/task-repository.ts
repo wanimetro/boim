@@ -16,7 +16,7 @@ export const taskRepository = {
   },
   async findTask(teamId: string, seq: number): Promise<EditableTask | null> {
     const { data, error } = await db().from("tasks")
-      .select("id, title, owner_id, due, due_time, rule, created_by")
+      .select("id, title, owner_id, due, due_time, criteria, created_by")
       .eq("team_id", teamId).eq("seq", seq).maybeSingle();
     if (error) throw error;
     return data;

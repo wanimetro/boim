@@ -8,7 +8,7 @@ import { createTaskForUser, updateTaskForUser } from "@/server/services/task-ser
 
 const repo = vi.mocked(taskRepository);
 const token = "a".repeat(24);
-const input = { title: "발표 준비", owner_id: "member", due: "2026-11-01", due_time: "18:00", rule: "발표 자료 다섯 장" };
+const input = { title: "발표 준비", owner_id: "member", due: "2026-11-01", due_time: "18:00", criteria: ["발표 자료 다섯 장", "발표자 노트 포함"] };
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -66,6 +66,17 @@ describe("task authorization and rules", () => {
     await updateTaskForUser("user", token, 7, { ...input, title: "새 발표" });
     expect(repo.findTask).toHaveBeenCalledWith("team", 7);
     expect(repo.updateWithEdit).toHaveBeenCalledWith("task", "member", { ...input, title: "새 발표" });
+  });
+  it("trims criteria, drops empty lines, and rejects empty or oversized lists", async () => {
+    await createTaskForUser("user", token, { ...input, criteria: ["  발표 자료 다섯 장 ", "", "발표자 노트 포함"] });
+    expect(repo.create).toHaveBeenCalledWith("team", "member", input);
+    repo.create.mockClear();
+    await expect(createTaskForUser("user", token, { ...input, criteria: ["", "  "] })).resolves.toHaveProperty("error");
+    await expect(createTaskForUser("user", token, { ...input, criteria: Array.from({ length: 9 }, (_, i) => `기준 ${i}`) })).resolves.toHaveProperty("error");
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+  it("treats a reordered criteria list as a change", async () => {
+    await expect(updateTaskForUser("user", token, 1, { ...input, criteria: [...input.criteria].reverse() })).resolves.toEqual({ ok: true, changed: true });
   });
   it("does not report success if atomic persistence fails", async () => {
     repo.updateWithEdit.mockRejectedValue(new Error("internal database details"));

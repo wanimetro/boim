@@ -3,6 +3,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import { teamRepository as repo } from "@/server/repositories/team-repository";
 
 import { statusOf, type Team, type Member, type Submission, type Task } from "@/domain/task";
+import { roundState, submissionState, type Answer } from "@/domain/criteria";
 export type { Status, Review, Team, Member, Submission, Task } from "@/domain/task";
 export { statusOf } from "@/domain/task";
 
@@ -32,14 +33,34 @@ export async function membersOf(teamId: string): Promise<Member[]> {
 export async function tasksOf(team: Team, members: Member[]): Promise<Task[]> {
   const data = await repo.tasks(team.id);
   const byId = new Map(members.map((m) => [m.id, m]));
+  const now = Date.now();
+  const memberIds = members.map((m) => m.id);
+  type RawSubmission = Omit<Submission, "state" | "checks"> & { submission_checks: Answer[] | null };
   return (data ?? []).map((t) => {
-    const subs = [...((t.submissions as Submission[]) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const criteria = (t.criteria as string[] | null) ?? [t.rule];
+    const version = Number(t.criteria_version ?? 1);
+    const votes = ((t.criteria_votes as Answer[] | null) ?? []).filter((v) => v.version === version);
+    // 기준 합의: 등록한 사람을 뺀 팀원 (등록한 사람이 없으면 전원)
+    const agreement = roundState({
+      items: criteria.length, version, start: Date.parse(String(t.criteria_proposed_at)),
+      participants: memberIds.filter((id) => id !== t.created_by), answers: votes, now,
+    });
+    const asc = [...((t.submissions as RawSubmission[] | null) ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const subs: Submission[] = asc.map((s, i) => {
+      const checks = (s.submission_checks ?? []).filter((c) => c.version === version);
+      const next = asc[i + 1] ? Date.parse(asc[i + 1].created_at) : null;
+      const { submission_checks: _drop, ...rest } = s;
+      void _drop;
+      return { ...rest, checks, state: submissionState({ sub: s, criteria: agreement, items: criteria.length, version, members: memberIds, checks, now, next }) };
+    }).reverse();
     const latest = subs[0] ?? null;
     const o = byId.get(t.owner_id);
     return {
       id: t.id, seq: t.seq, code: `${team.code}-${t.seq}`, title: t.title, owner_id: t.owner_id, created_by: t.created_by,
       owner: o?.nickname ?? "?", owner_code: o?.code ?? "?",
-      due: t.due, due_time: String(t.due_time).slice(0, 5), rule: t.rule, status: statusOf(latest), latest, submissions: subs,
+      due: t.due, due_time: String(t.due_time).slice(0, 5), rule: t.rule,
+      criteria, criteria_version: version, agreement, votes,
+      status: statusOf(latest), latest, submissions: subs,
     };
   });
 }

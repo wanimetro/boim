@@ -1,5 +1,6 @@
 import type { Task } from "@/domain/task";
 import { deadlineMs } from "@/domain/time";
+import { isPassed } from "@/domain/criteria";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -12,7 +13,7 @@ export type Outcome = "self-before" | "self-after" | "proxy" | "late" | "none";
  */
 export function outcomeOf(t: Task): Outcome {
   const deadline = deadlineMs(t.due, t.due_time);
-  const passed = t.submissions.filter((s) => s.review === "pass")
+  const passed = t.submissions.filter((s) => isPassed(s.state))
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
   const self = passed.find((s) => s.uploader_id === t.owner_id);
   if (self) {

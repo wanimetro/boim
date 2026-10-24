@@ -25,7 +25,7 @@ export default async function NewTask({ params }: PageProps<"/t/[token]/new">) {
         <header className="stack-sm">
           <span className="eyebrow">{team.name}</span>
           <h1>업무 등록</h1>
-          <p className="muted">업무 하나에 담당 한 명과 중간 마감 하나를 정합니다. 완료 기준은 파일만 보고도 됐는지 안 됐는지 가를 수 있게 적어 주세요.</p>
+          <p className="muted">업무 하나에 담당 한 명과 중간 마감 하나를 정합니다. 완료 기준은 항목으로 나눠, 파일만 보고도 됐는지 안 됐는지 가를 수 있게 적어 주세요.</p>
         </header>
         {members.length < 2 && (
           <p className="callout warn-box small">아직 팀에 혼자 있습니다. “팀원 초대”에서 팀원을 먼저 부르면 담당을 고를 수 있습니다.</p>

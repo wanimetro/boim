@@ -49,21 +49,21 @@ export async function getAdminDashboard() {
     const list = editsOf(taskId);
     if (!list.length) return null;
     const keys = new Set(list.flatMap((e) => Object.keys(e.after as object)));
-    const names = [keys.has("rule") && "완료 기준", (keys.has("due") || keys.has("due_time")) && "마감", keys.has("owner_id") && "담당", keys.has("title") && "업무 이름"].filter(Boolean);
+    const names = [(keys.has("criteria") || keys.has("rule")) && "완료 기준", (keys.has("due") || keys.has("due_time")) && "마감", keys.has("owner_id") && "담당", keys.has("title") && "업무 이름"].filter(Boolean);
     return `수정 ${list.length}회 (${names.join(", ")}) · 마지막 ${dateTime(list[0].created_at)}`;
   };
 
-  const queue = rows.flatMap((r) => r.tasks.flatMap((t) =>
-    t.submissions.filter((s) => s.review === "pending").map((s) => ({ r, t, s }))));
-  queue.sort((a, b) => a.s.created_at.localeCompare(b.s.created_at));
-  const signed = await Promise.all(queue.map(async ({ s }) =>
-    s.file_path ? await repo.signedUrl(s.file_path) : null));
+  // 팀원 확인 흐름: 기준 합의 중 · 결과물 확인 중 · 반대 의견으로 멈춘 업무 수 (이름·이유는 운영 화면에도 보이지 않는다)
+  const flow = rows.map((r) => ({
+    r,
+    agreeing: r.tasks.filter((t) => t.agreement.kind === "open").length,
+    agreeBlocked: r.tasks.filter((t) => t.agreement.kind === "objected").length,
+    checking: r.tasks.filter((t) => t.latest && (t.latest.state.kind === "open" || t.latest.state.kind === "waiting")).length,
+    rejected: r.tasks.filter((t) => t.latest?.state.kind === "objected").length,
+    byAll: r.tasks.filter((t) => t.latest?.state.kind === "confirmed" && t.latest.state.by === "all").length,
+    byTimeout: r.tasks.filter((t) => t.latest?.state.kind === "confirmed" && t.latest.state.by === "timeout").length,
+  }));
 
-  return { rows, study, sum, rate, v, pushStats, recent, taskInfo, memberCode, editsOf, editLabel, queue, signed };
-}
-export async function reviewSubmission(id: string, verdict: string, reason: string) {
-  await requireAdmin();
-  if (verdict !== "pass" && verdict !== "fail") return;
-  await repo.review(id, verdict, verdict === "fail" ? reason.trim().slice(0, 200) || null : null);
+  return { rows, study, sum, rate, v, pushStats, recent, taskInfo, memberCode, editsOf, editLabel, flow };
 }
 export async function setStudyInclusion(id: string, included: boolean) { await requireAdmin(); await repo.study(id, included); }

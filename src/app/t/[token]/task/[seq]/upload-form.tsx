@@ -40,7 +40,7 @@ export function UploadForm({ token, seq, isOwner, ownerName, meName }: {
     return (
       <section className="panel">
         <h2>올렸습니다</h2>
-        <p className="muted">완료 기준에 맞는지 확인한 뒤 “완료”로 바뀝니다. 지금은 “확인 중”으로 보입니다.</p>
+        <p className="muted">다른 팀원이 기준 항목마다 확인합니다. 전원이 충족으로 확인하거나 12시간 동안 미충족 의견이 없으면 “완료”로 바뀝니다.</p>
         <button className="btn ghost" type="button" onClick={() => setDone(false)}>다른 파일 더 올리기</button>
       </section>
     );

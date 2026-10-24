@@ -12,6 +12,10 @@ export const submissionRepository = {
     if (error || !data) throw error ?? new Error("업로드를 준비하지 못했습니다.");
     return { path: data.path, signedToken: data.token };
   },
+  async signedUrl(path: string) {
+    const { data } = await db().storage.from(BUCKET).createSignedUrl(path, 3600);
+    return data?.signedUrl ?? null;
+  },
   async save(input: { task_id: string; uploader_id: string; file_path: string | null; file_name: string | null; link_url: string | null; note: string | null }) {
     const { error } = await db().from("submissions").insert(input); if (error) throw error;
   },

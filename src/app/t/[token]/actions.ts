@@ -6,14 +6,15 @@ import type { TaskInput } from "@/domain/task";
 import { createTaskForUser, updateTaskForUser } from "@/server/services/task-service";
 import { regenerateInviteForUser, savePushForUser, removePushForUser } from "@/server/services/member-actions-service";
 import { prepareSubmission, submitWorkForUser } from "@/server/services/submission-service";
-export type FormState = { error?: string };
+import { checkSubmissionForUser, voteCriteriaForUser } from "@/server/services/criteria-service";
+export type FormState = { error?: string; ok?: boolean };
 function readTaskForm(formData: FormData): TaskInput {
   return {
     title: String(formData.get("title") ?? ""),
     owner_id: String(formData.get("owner") ?? ""),
     due: String(formData.get("due") ?? ""),
     due_time: String(formData.get("due_time") || "23:59"),
-    rule: String(formData.get("rule") ?? ""),
+    criteria: formData.getAll("criteria").map(String),
   };
 }
 
@@ -45,4 +46,21 @@ export async function prepareUpload(token: string, seq: number, fileName: string
 export async function submitWork(token: string, seq: number, input: { path?: string; fileName?: string; link?: string; note?: string }): Promise<FormState> {
   const result = await submitWorkForUser((await currentUser())?.id ?? null, token, seq, input);
   if (!("error" in result)) revalidatePath(`/t/${token}`); return result;
+}
+
+/** 항목별 응답 폼: v0..vN = ok|no, r0..rN = 이유 */
+const reader = (formData: FormData) => (key: string) => String(formData.get(key) ?? "");
+
+export async function voteCriteria(token: string, seq: number, version: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  const result = await voteCriteriaForUser((await currentUser())?.id ?? null, token, seq, version, reader(formData));
+  if ("error" in result) return result;
+  revalidatePath(`/t/${token}`); revalidatePath(`/t/${token}/task/${seq}`);
+  return { ok: true };
+}
+
+export async function checkSubmission(token: string, seq: number, submissionId: string, version: number, _prev: FormState, formData: FormData): Promise<FormState> {
+  const result = await checkSubmissionForUser((await currentUser())?.id ?? null, token, seq, submissionId, version, reader(formData));
+  if ("error" in result) return result;
+  revalidatePath(`/t/${token}`); revalidatePath(`/t/${token}/task/${seq}`);
+  return { ok: true };
 }

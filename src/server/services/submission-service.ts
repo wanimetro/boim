@@ -20,3 +20,10 @@ export async function submitWorkForUser(userId: string | null, token: string, se
   catch { return { error: "저장하지 못했습니다. 잠시 후 다시 시도해 주세요." }; }
   return {};
 }
+/** 팀원이 서로의 결과물을 열어 확인할 수 있게, 이 팀 폴더의 파일만 1시간짜리 링크로 연다 */
+export async function fileLinksForUser(userId: string | null, token: string, paths: string[]): Promise<Map<string, string>> {
+  const { team } = await requireTeamMember(userId, token);
+  const mine = [...new Set(paths)].filter((p) => p.startsWith(`${team.code}/`));
+  const links = await Promise.all(mine.map(async (p) => [p, await repo.signedUrl(p).catch(() => null)] as const));
+  return new Map(links.filter((l): l is readonly [string, string] => Boolean(l[1])));
+}

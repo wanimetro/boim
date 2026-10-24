@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 let db: PGlite;
 const user = "11111111-1111-4111-8111-111111111111", team = "22222222-2222-4222-8222-222222222222", member = "33333333-3333-4333-8333-333333333333", task = "44444444-4444-4444-8444-444444444444";
-const input = { title: "변경된 업무", owner_id: member, due: "2099-11-01", due_time: "18:00", rule: "자료 다섯 장" };
+const input = { title: "변경된 업무", owner_id: member, due: "2099-11-01", due_time: "18:00", criteria: ["자료 다섯 장", "출처 표기"] };
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
@@ -17,13 +17,13 @@ beforeAll(async () => {
     if(file.includes("push_reminders")) sql=sql.split("-- 5분마다")[0];
     await db.exec(sql);
   }
-  await db.exec(readFileSync(path.join(dir,readdirSync(dir).find(f=>f.endsWith("layered_transactions.sql"))!),"utf8"));
+  for (const file of readdirSync(dir).filter(f=>/^\d{14}_/.test(f)).sort()) await db.exec(readFileSync(path.join(dir,file),"utf8"));
 },30000);
 beforeEach(async () => {
   await db.exec(`begin; insert into auth.users values('${user}');
     insert into public.teams(id,code,name,token,invite_code) values('${team}','T900','테스트','${"a".repeat(24)}','ABCDEFGH');
     insert into public.members(id,team_id,user_id,code,is_leader) values('${member}','${team}','${user}','U01',true);
-    insert into public.tasks(id,team_id,seq,title,owner_id,created_by,due,due_time,rule) values('${task}','${team}',1,'원래 업무','${member}','${member}','2099-11-01','18:00','자료 다섯 장');`);
+    insert into public.tasks(id,team_id,seq,title,owner_id,created_by,due,due_time,rule,criteria) values('${task}','${team}',1,'원래 업무','${member}','${member}','2099-11-01','18:00','자료 다섯 장',array['자료 다섯 장']);`);
 });
 afterEach(async()=>{await db.exec("rollback;");});
 afterAll(async()=>{await db.close();});
@@ -33,7 +33,9 @@ describe("Postgres atomic team and task persistence",()=>{
   it("commits the task and only the actual changed fields in its edit",async()=>{
     await update();
     const edits=await db.query<{before:unknown;after:unknown}>("select before,after from public.task_edits");
-    expect(edits.rows).toEqual([{before:{title:"원래 업무"},after:{title:input.title}}]);
+    expect(edits.rows).toEqual([{before:{title:"원래 업무",criteria:["자료 다섯 장"]},after:{title:input.title,criteria:input.criteria}}]);
+    const t=await db.query<{rule:string;criteria_version:number}>("select rule,criteria_version from public.tasks where id=$1",[task]);
+    expect(t.rows[0]).toEqual({rule:"자료 다섯 장 / 출처 표기",criteria_version:2});
   });
   it("rolls back the task if its edit cannot be inserted",async()=>{
     await db.exec("create function reject_edit() returns trigger language plpgsql as $$ begin raise exception 'test audit failure'; end $$; create trigger reject_edit before insert on public.task_edits for each row execute function reject_edit(); savepoint attempt;");

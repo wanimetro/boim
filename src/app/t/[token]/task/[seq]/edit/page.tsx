@@ -33,14 +33,14 @@ export default async function EditTask({ params }: PageProps<"/t/[token]/task/[s
         {editable ? (
           <>
             <p className="muted">마감 전까지 팀장이나 이 업무를 등록한 사람이 고칠 수 있습니다. 고친 내용은 기록으로 남습니다.</p>
-            {task.submissions.length > 0 && (
-              <p className="callout warn-box small">이미 올라온 결과물이 있습니다. 완료 기준을 바꾸면 앞으로의 검수는 새 기준으로 합니다.</p>
-            )}
             <TaskForm
               action={updateTask.bind(null, token, task.seq)}
               members={members.map((m) => ({ id: m.id, name: m.nickname }))}
               minDate={today()}
-              defaults={{ title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time, rule: task.rule }}
+              defaults={{ title: task.title, owner_id: task.owner_id, due: task.due, due_time: task.due_time, criteria: task.criteria }}
+              criteriaNote={task.submissions.length > 0
+                ? "완료 기준을 바꾸면 기준 합의를 처음부터 다시 하고, 이미 올라온 결과물도 새 기준으로 다시 확인합니다."
+                : "완료 기준을 바꾸면 기준 합의를 처음부터 다시 합니다."}
               submitLabel="고친 내용 저장"
             />
           </>
